@@ -1,0 +1,31 @@
+{
+  "scratch_seed4096": {
+    "rwp_sc03": {
+      "converged_pdr": 0.5389,
+      "initial_pdr": 0.4733,
+      "final_pdr": 0.54,
+      "T_50": 250,
+      "T_90": 750,
+      "AULC": 2455.0,
+      "eval_points": 20
+    },
+    "rwp_sc10": {
+      "converged_pdr": 0.6889,
+      "initial_pdr": 0.7667,
+      "final_pdr": 0.66,
+      "T_50": 250,
+      "T_90": 250,
+      "AULC": 3498.33,
+      "eval_points": 20
+    },
+    "rwp_sc07": {
+      "converged_pdr": 0.3556,
+      "initial_pdr": 0.3467,
+      "final_pdr": 0.3667,
+      "T_50": 250,
+      "T_90": 250,
+      "AULC": 1660.83,
+      "eval_points": 20
+    }
+  }
+}

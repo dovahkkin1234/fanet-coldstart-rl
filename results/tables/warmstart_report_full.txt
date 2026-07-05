@@ -1,0 +1,32 @@
+XGBoost Warm-Start Model — Full-Scale RWP Training Report
+=======================================================
+
+Train scenarios : ['rwp_sc01', 'rwp_sc02', 'rwp_sc03', 'rwp_sc04', 'rwp_sc07', 'rwp_sc08', 'rwp_sc10', 'rwp_sc12', 'rwp_sc15']
+Val scenarios   : ['rwp_sc05', 'rwp_sc09', 'rwp_sc13']
+Test scenarios  : ['rwp_sc06', 'rwp_sc11', 'rwp_sc14']
+
+Training rows   : 6,529,580
+Val rows        : 1,773,618
+Test rows       : 645,347
+
+scale_pos_weight: 2.79
+Best round      : 135
+
+METRICS
+------------------------------
+Train  | AUC=0.9296 | Top-1=0.8481 | Top-2=0.9546 | Decisions=1720918
+Val    | AUC=0.8745 | Top-1=0.7845 | Top-2=0.9131 | Decisions=386772
+Test   | AUC=0.9031 | Top-1=0.8500 | Top-2=0.9640 | Decisions=251061
+
+FEATURE IMPORTANCE (top 10)
+------------------------------
+  destination_reachable               0.16755
+  current_num_neighbors               0.15005
+  candidate_progress                  0.14876
+  candidate_rssi                      0.07694
+  candidate_estimated_lifetime        0.06653
+  distance_to_destination             0.06286
+  candidate_link_quality              0.05348
+  candidate_distance                  0.03421
+  candidate_queue_occupancy           0.03201
+  avg_link_quality                    0.03137
