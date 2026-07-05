@@ -1,0 +1,98 @@
+# pilot_configs.yaml
+# 10 pilot scenario configurations. Each runs for EPISODES_PER_CONFIG episodes
+# with different random seeds. Tune these to stress-test routing under
+# different densities, speeds, and network sizes.
+
+# Fixed parameters shared by all scenarios
+defaults:
+  z_min: 50
+  z_max: 150
+  pause_max: 5.0
+  timestep: 0.5
+  duration: 300          # seconds per episode (5 min). Use 120 for quick tests.
+  packet_rate: 1.0       # packets/sec per flow
+  mobility_model: random_waypoint
+
+episodes_per_config: 30
+
+# Each scenario differs in drones / area / speed / range -> different density & dynamics
+scenarios:
+  - name: pilot_01      # small, slow, dense
+    num_drones: 10
+    area_x: 500
+    area_y: 500
+    speed_min: 5
+    speed_max: 15
+    comm_range: 200
+
+  - name: pilot_02      # medium, medium speed
+    num_drones: 20
+    area_x: 1000
+    area_y: 1000
+    speed_min: 10
+    speed_max: 25
+    comm_range: 250
+
+  - name: pilot_03      # large, fast, sparse
+    num_drones: 30
+    area_x: 1500
+    area_y: 1500
+    speed_min: 20
+    speed_max: 40
+    comm_range: 250
+
+  - name: pilot_04      # small area, fast, moderately dense
+    num_drones: 15
+    area_x: 700
+    area_y: 700
+    speed_min: 15
+    speed_max: 35
+    comm_range: 180
+
+  - name: pilot_05      # very large, slow, very sparse
+    num_drones: 25
+    area_x: 2000
+    area_y: 2000
+    speed_min: 5
+    speed_max: 15
+    comm_range: 300
+
+  - name: pilot_06      # medium area, very fast
+    num_drones: 20
+    area_x: 800
+    area_y: 800
+    speed_min: 30
+    speed_max: 50
+    comm_range: 200
+
+  - name: pilot_07      # high drone count
+    num_drones: 40
+    area_x: 1500
+    area_y: 1500
+    speed_min: 10
+    speed_max: 20
+    comm_range: 250
+
+  - name: pilot_08      # very sparse (far apart, but still occasionally routable)
+    num_drones: 12
+    area_x: 1500
+    area_y: 1500
+    speed_min: 5
+    speed_max: 10
+    comm_range: 350
+
+  - name: pilot_09      # dense, fast, but with some partitions
+    num_drones: 30
+    area_x: 1300
+    area_y: 1300
+    speed_min: 15
+    speed_max: 30
+    comm_range: 250
+
+  - name: pilot_10      # variable speed range (mix fast and slow)
+    num_drones: 20
+    area_x: 1000
+    area_y: 1000
+    speed_min: 5
+    speed_max: 50
+    comm_range: 250

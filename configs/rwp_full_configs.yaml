@@ -1,0 +1,205 @@
+# rwp_full_configs.yaml
+# Full-scale RWP dataset — 15 scenarios, 390 total episodes
+#
+# Replaces the 10-scenario pilot. Key changes:
+#   - 15 scenarios (was 10) — better parameter coverage
+#   - 3 val + 3 test scenarios (was 2+2)
+#   - Bug fixes required: topology_change_rate, queue_occupancy
+#
+# Train/Val/Test split (by scenario):
+#   Train : sc01 sc02 sc03 sc04 sc07 sc08 sc10 sc12 sc15  (270 episodes)
+#   Val   : sc05 sc09 sc13                                  (60 episodes)
+#   Test  : sc06 sc11 sc14                                  (60 episodes)
+#
+# Seed formula: seed = scenario_number * 10000 + episode_number
+#
+# IMPORTANT: Apply all 3 simulator bug fixes BEFORE generating.
+#   1. topology_change_rate computation (prev_links update)
+#   2. Queue occupancy (limit hops per timestep to 2)
+#   3. Verify topology_change_rate propagates to routing_decisions.csv
+
+defaults:
+  mobility_model:      random_waypoint
+  z_min:               50
+  z_max:               150
+  timestep:            0.5
+  duration:            300         # 5 minutes per episode
+  packet_rate:         1.0
+  max_hops_per_step:   2           # NEW — limits multi-hop to allow queue buildup
+
+# Train scenarios get 30 episodes, Val/Test get 20
+episodes_train: 30
+episodes_eval:  20
+
+scenarios:
+
+  # ── Dense topologies (small area) ────────────────────────────────────────
+  - name:        rwp_sc01              # TRAIN
+    description: Dense network, low speed — easiest scenario
+    num_drones:  10
+    area_x:      500
+    area_y:      500
+    speed_min:   5
+    speed_max:   15
+    comm_range:  180
+    pause_max:   5.0
+    episodes:    30                    # train
+
+  - name:        rwp_sc02              # TRAIN
+    description: Dense network, high speed — fast link churn at small scale
+    num_drones:  10
+    area_x:      500
+    area_y:      500
+    speed_min:   25
+    speed_max:   40
+    comm_range:  200
+    pause_max:   3.0
+    episodes:    30
+
+  # ── Medium topologies ────────────────────────────────────────────────────
+  - name:        rwp_sc03              # TRAIN
+    description: Standard medium density, low speed
+    num_drones:  20
+    area_x:      1000
+    area_y:      1000
+    speed_min:   5
+    speed_max:   15
+    comm_range:  250
+    pause_max:   5.0
+    episodes:    30
+
+  - name:        rwp_sc04              # TRAIN
+    description: Standard medium density, high speed
+    num_drones:  20
+    area_x:      1000
+    area_y:      1000
+    speed_min:   25
+    speed_max:   40
+    comm_range:  250
+    pause_max:   3.0
+    episodes:    30
+
+  # ── Large topologies (30 drones) ─────────────────────────────────────────
+  - name:        rwp_sc05              # VAL
+    description: Large network, slow — validation scenario
+    num_drones:  30
+    area_x:      1500
+    area_y:      1500
+    speed_min:   5
+    speed_max:   15
+    comm_range:  250
+    pause_max:   5.0
+    episodes:    20                    # val
+
+  - name:        rwp_sc06              # TEST — primary hard test
+    description: Large network, fast — hardest common scenario, never seen in training
+    num_drones:  30
+    area_x:      1500
+    area_y:      1500
+    speed_min:   25
+    speed_max:   40
+    comm_range:  250
+    pause_max:   3.0
+    episodes:    20
+
+  # ── Swarm (high drone count) ─────────────────────────────────────────────
+  - name:        rwp_sc07              # TRAIN
+    description: Large swarm, moderate speed — tests graph scalability
+    num_drones:  40
+    area_x:      1500
+    area_y:      1500
+    speed_min:   10
+    speed_max:   25
+    comm_range:  250
+    pause_max:   5.0
+    episodes:    30
+
+  # ── Sparse topologies (few drones, large area) ───────────────────────────
+  - name:        rwp_sc08              # TRAIN
+    description: Sparse, slow — frequent partitions, long-lived links
+    num_drones:  15
+    area_x:      1500
+    area_y:      1500
+    speed_min:   5
+    speed_max:   15
+    comm_range:  250
+    pause_max:   5.0
+    episodes:    30
+
+  - name:        rwp_sc09              # VAL
+    description: Sparse, fast — very challenging, high drop rate
+    num_drones:  15
+    area_x:      1500
+    area_y:      1500
+    speed_min:   25
+    speed_max:   40
+    comm_range:  250
+    pause_max:   3.0
+    episodes:    20
+
+  # ── Special cases ─────────────────────────────────────────────────────────
+  - name:        rwp_sc10              # TRAIN
+    description: Dense but very fast — link lifetime is the critical bottleneck
+    num_drones:  25
+    area_x:      800
+    area_y:      800
+    speed_min:   35
+    speed_max:   50
+    comm_range:  200
+    pause_max:   2.0
+    episodes:    30
+
+  - name:        rwp_sc11              # TEST — sparse partition test
+    description: Very sparse, slow, large area — partition-dominated routing
+    num_drones:  20
+    area_x:      2000
+    area_y:      2000
+    speed_min:   5
+    speed_max:   20
+    comm_range:  300
+    pause_max:   5.0
+    episodes:    20
+
+  - name:        rwp_sc12              # TRAIN
+    description: Big swarm, moderate-fast — combines scale with speed
+    num_drones:  40
+    area_x:      2000
+    area_y:      2000
+    speed_min:   20
+    speed_max:   35
+    comm_range:  300
+    pause_max:   3.0
+    episodes:    30
+
+  - name:        rwp_sc13              # VAL — churn stress test
+    description: Compact area, extreme speed, short range — maximum topology churn
+    num_drones:  30
+    area_x:      600
+    area_y:      600
+    speed_min:   30
+    speed_max:   50
+    comm_range:  150
+    pause_max:   2.0
+    episodes:    20
+
+  - name:        rwp_sc14              # TEST — ultra-sparse
+    description: Very few drones, very large area, long pauses — episodic connectivity
+    num_drones:  12
+    area_x:      2000
+    area_y:      2000
+    speed_min:   5
+    speed_max:   15
+    comm_range:  350
+    pause_max:   8.0
+    episodes:    20
+
+  - name:        rwp_sc15              # TRAIN — heterogeneous speed
+    description: Wide speed range within one episode — some drones slow, some fast
+    num_drones:  25
+    area_x:      1200
+    area_y:      1200
+    speed_min:   5
+    speed_max:   50
+    comm_range:  250
+    pause_max:   5.0
+    episodes:    30
