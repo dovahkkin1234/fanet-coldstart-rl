@@ -1,0 +1,177 @@
+# Simulator Bug Fixes — Apply These 3 Changes to src\simulator.py
+# Before generating the full-scale RWP dataset
+#
+# Open C:\Users\shiri\FANET_sim\src\simulator.py and make these changes:
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUG FIX 1: topology_change_rate always 0.0
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# ROOT CAUSE: In the run() method, change_rate is hardcoded to 0.0 and passed
+# to _log_topology(). The actual change rate IS computed inside _build_graph()
+# (via self.prev_links symmetric difference), but it's never returned.
+#
+# FIND this block in the run() method (around line 340-345):
+#
+#     # 3. Topology change rate
+#     total_now = len(self.prev_links)
+#     change_rate = 0.0  # computed inside _build_graph via prev tracking
+#     active_flows = sum(1 for f in self.flows
+#                        if f['start_time'] <= t <= f['end_time'])
+#     # approximate change rate: broken+new over current
+#     self._log_topology(G, t, active_flows, change_rate)
+#
+# REPLACE with:
+#
+#     # 3. Topology change rate — compute from prev_links diff
+#     active_flows = sum(1 for f in self.flows
+#                        if f['start_time'] <= t <= f['end_time'])
+#     self._log_topology(G, t, active_flows, self._last_change_rate)
+#
+# THEN modify _build_graph() to store the change rate. Find the line:
+#
+#     self.prev_links = current_links
+#     return G
+#
+# REPLACE with:
+#
+#     # Store change rate for topology logging
+#     if len(self.prev_links) == 0 and len(current_links) == 0:
+#         self._last_change_rate = 0.0
+#     else:
+#         sym_diff = self.prev_links.symmetric_difference(current_links)
+#         union = self.prev_links.union(current_links)
+#         self._last_change_rate = len(sym_diff) / max(len(union), 1)
+#
+#     self.prev_links = current_links
+#     return G
+#
+# AND in __init__(), add this line after self.prev_links = set():
+#
+#     self._last_change_rate = 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUG FIX 2: Queue occupancy always 0.0 (two sub-fixes)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# SUB-FIX 2A: Remove the immediate dequeue after enqueue
+#
+# In _forward_one_hop(), FIND these lines:
+#
+#         # Queue check at receiver
+#         if not self.queues[next_hop].enqueue(packet):
+#             packet.dropped = True
+#             packet.drop_reason = 'queue_overflow'
+#             self._log_transition(t, packet, next_hop, G, dropped=True,
+#                                  dist_before=dist_before, dist_after=dist_after)
+#             return True
+#         else:
+#             self.queues[next_hop].dequeue()  # immediate forwarding model
+#
+# REPLACE the else branch:
+#
+#         # Queue check at receiver
+#         if not self.queues[next_hop].enqueue(packet):
+#             packet.dropped = True
+#             packet.drop_reason = 'queue_overflow'
+#             self._log_transition(t, packet, next_hop, G, dropped=True,
+#                                  dist_before=dist_before, dist_after=dist_after)
+#             return True
+#         # NOTE: removed immediate dequeue — packets now stay in queue
+#         # until drained at start of next timestep
+#
+#
+# SUB-FIX 2B: Limit hops per timestep + drain queues each timestep
+#
+# At the top of the file, after the existing constants, ADD:
+#
+#     MAX_HOPS_PER_STEP = 2   # limits multi-hop to allow queue buildup
+#
+# In the run() method, FIND the forwarding loop:
+#
+#             # 5 & 6. Forward active packets (multi-hop within the timestep)
+#             still_active = []
+#             for pkt in self.active_packets:
+#                 done = False
+#                 # allow up to a few hops per timestep for forwarding progress
+#                 for _ in range(TTL):
+#                     G_now = G
+#                     finished = self._forward_one_hop(G_now, t, pkt)
+#                     if finished:
+#                         done = True
+#                         break
+#                 if done:
+#                     self._finish_packet(pkt)
+#                 else:
+#                     still_active.append(pkt)
+#             self.active_packets = still_active
+#
+# REPLACE with:
+#
+#             # 5. Drain queues from previous timestep
+#             for q in self.queues:
+#                 while q.length > 0:
+#                     q.dequeue()
+#
+#             # 6. Forward active packets (limited hops per timestep)
+#             still_active = []
+#             for pkt in self.active_packets:
+#                 done = False
+#                 for _ in range(MAX_HOPS_PER_STEP):
+#                     finished = self._forward_one_hop(G, t, pkt)
+#                     if finished:
+#                         done = True
+#                         break
+#                 if done:
+#                     self._finish_packet(pkt)
+#                 else:
+#                     still_active.append(pkt)
+#             self.active_packets = still_active
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUG FIX 3: Verify topology_change_rate propagates to routing_decisions.csv
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# This is already correct in the code! In _log_routing_decision():
+#
+#     'topology_change_rate': topo.get('topology_change_rate', 0.0),
+#
+# reads from self.topo_rows[-1], which is the latest topology snapshot.
+# After Fix 1, _log_topology() receives the real change_rate instead of 0.0,
+# so this propagation will automatically work.
+#
+# NO CODE CHANGE NEEDED for Fix 3 — it's fixed by Fix 1.
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VERIFICATION: After applying all fixes, run a single test episode:
+#
+#   python src\run_pilots.py --config pilot_02 --episodes 1 --duration 60
+#
+# Then check:
+#   python -c "
+#   import pandas as pd
+#   tf = pd.read_csv('data/pilot/pilot_02/episode_001/topology_features.csv')
+#   print('topology_change_rate mean:', tf['topology_change_rate'].mean())
+#   print('topology_change_rate range:', tf['topology_change_rate'].min(), '-', tf['topology_change_rate'].max())
+#   print('avg_queue_occupancy mean:', tf['avg_queue_occupancy'].mean())
+#   print('max_queue_occupancy max:', tf['max_queue_occupancy'].max())
+#   rd = pd.read_csv('data/pilot/pilot_02/episode_001/routing_decisions.csv')
+#   print('routing topology_change_rate mean:', rd['topology_change_rate'].mean())
+#   print('routing current_queue_occupancy mean:', rd['current_queue_occupancy'].mean())
+#   pk = pd.read_csv('data/pilot/pilot_02/episode_001/packet_logs.csv')
+#   print('PDR:', pk['delivered'].mean())
+#   "
+#
+# EXPECTED:
+#   topology_change_rate mean: 0.05-0.25 (NOT 0.0)
+#   avg_queue_occupancy mean: 0.001-0.05 (NOT 0.0)
+#   PDR: 0.50-0.85 (should not drop below 0.30 for pilot_02)
+#
+# If PDR drops below 0.30, increase MAX_HOPS_PER_STEP from 2 to 3.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+
