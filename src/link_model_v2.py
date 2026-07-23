@@ -83,6 +83,15 @@ def rx_power_mw(distance_m, shadowing_db=0.0):
     return dbm_to_mw(rx_power_dbm(distance_m, shadowing_db))
 
 
+def rx_power_mw_array(distances_m):
+    """Vectorized received power (mW) over an array of distances, no shadowing.
+    Used by simulator_v2 to compute ambient (expected) interference per node in
+    O(N^2) array ops rather than O(N^2) Python loops."""
+    d = np.maximum(np.asarray(distances_m, dtype=float), 0.1)
+    pl = _PL_D0 + 10.0 * PATH_LOSS_EXPONENT * np.log10(d / REF_DISTANCE)
+    return 10.0 ** ((TX_POWER_DBM - pl) / 10.0)
+
+
 # ── Bianchi CSMA/CA collision model ──────────────────────────────────────────
 
 def bianchi_tau_p(n_contenders, W=CW_MIN, m=BACKOFF_STAGES, iters=200, tol=1e-10):
