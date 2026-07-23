@@ -25,6 +25,7 @@ import networkx as nx
 from mobility import DroneRWP
 import link_model_v2 as lm2
 from models import EnergyModel, NodeQueue
+import routing_teachers_v2 as _rt2
 from routing_teachers_v2 import (queue_aware_greedy_next_hop, backpressure_next_hop,
                                  spbp_next_hop, da_gpsr_next_hop,
                                  etx_dijkstra_next_hop, lq_dijkstra_next_hop,
@@ -584,6 +585,10 @@ class FANETSimulatorV2:
 
     # ── main loop ────────────────────────────────────────────────────────────
     def run(self):
+        # Per-teacher degeneracy counters are module-level in routing_teachers_v2,
+        # so they must be reset per episode or they accumulate across runs (and,
+        # under ProcessPoolExecutor, would silently mix runs sharing a worker).
+        _rt2.reset_teacher_stats()
         n_frames = int(self.duration / FRAME_DT)
         active = []
         time_since_gen = {f['flow_id']: 0.0 for f in self.flows}
@@ -708,6 +713,10 @@ class FANETSimulatorV2:
             'n_decisions': self.n_decisions,
             'override_rate': self.n_overrides / max(self.n_decisions, 1),
             'bp_zerodiff_rate': self.n_bp_zerodiff / max(self.n_decisions, 1),
+            # Per-teacher degeneracy for the ACTOR of this episode: did it ever
+            # abandon its own rule (fallback), or run its rule with no
+            # discriminating signal (flat)? See routing_teachers_v2._TEACHER_STATS.
+            'teacher_stats': _rt2.get_teacher_stats(),
             'mean_tx_attempts': float(np.mean(self.tx_attempts)) if self.tx_attempts else 0.0,
             'max_tx_attempts': int(np.max(self.tx_attempts)) if self.tx_attempts else 0,
             'mean_delay_per_hop_ms': (float(np.mean(self.delivered_delays)) /

@@ -73,6 +73,49 @@ def get_bp_stats():
             'zero_gradient_rate': _BP_STATS['zero_gradient'] / c}
 
 
+# ── Per-teacher degeneracy instrumentation ──────────────────────────────────
+# Answers, at runtime rather than by static argument, two questions for EVERY
+# teacher on EVERY decision:
+#   'fallback' : did the teacher abandon its own rule and defer to
+#                _progress_fallback (i.e. silently behave as greedy progress)?
+#   'flat'     : did its own rule produce NO discrimination -- every candidate
+#                scoring identically -- so that argmax picked arbitrarily by
+#                iteration order?
+#
+# WHY THIS EXISTS: two teachers (backpressure, then dpp) were each caught
+# silently collapsing into greedy progress via a defensive gate, in both cases
+# only discovered by noticing byte-identical PDR against another teacher. A
+# 'flat' decision is the subtler cousin of that failure -- the teacher runs its
+# own rule but the rule has no signal to act on, which is exactly what
+# backpressure does ~64% of the time. Neither condition is inherently a bug
+# (a genuinely tied score is legitimate), but both must be MEASURED rather
+# than assumed rare.
+_TEACHER_STATS = {}
+
+
+def reset_teacher_stats():
+    _TEACHER_STATS.clear()
+
+
+def get_teacher_stats():
+    out = {}
+    for name, d in _TEACHER_STATS.items():
+        c = max(d['calls'], 1)
+        out[name] = {'calls': d['calls'],
+                     'flat': d['flat'], 'flat_rate': d['flat'] / c,
+                     'fallback': d['fallback'], 'fallback_rate': d['fallback'] / c}
+    return out
+
+
+def _stat(name, flat=False, fallback=False):
+    d = _TEACHER_STATS.setdefault(name, {'calls': 0, 'flat': 0, 'fallback': 0})
+    d['calls'] += 1
+    if flat:
+        d['flat'] += 1
+    if fallback:
+        d['fallback'] += 1
+
+
 def _pos(G, n):
     return np.array([G.nodes[n]['x'], G.nodes[n]['y'], G.nodes[n]['z']])
 
@@ -152,6 +195,7 @@ def backpressure_next_hop(G, current, destination, return_zerodiff_flag=False):
     zero_diff = (max_abs_diff == 0.0)
     if zero_diff:
         _BP_STATS['zero_gradient'] += 1
+    _stat('backpressure', flat=zero_diff, fallback=False)
     return (best, zero_diff) if return_zerodiff_flag else best
 
 
@@ -188,15 +232,26 @@ def spbp_next_hop(G, current, destination, v_bias=SPBP_V_BIAS):
 
     q_cur = float(G.nodes[current].get('queue_len', 0.0))
     best, best_score = None, -float('inf')
+    scores = []
     for n in neighbors:
         if n not in h:
             continue                      # unreachable -> exclude
         q_n = float(G.nodes[n].get('queue_len', 0.0))
         lq = float(G.edges[current, n].get('link_quality', 0.0))
         score = lq * ((q_cur - q_n) + v_bias * (h_cur - h[n]))
+        scores.append(score)
         if score > best_score:
             best_score, best = score, n
 
+    # NOTE: this _progress_fallback is believed UNREACHABLE on an undirected
+    # graph -- h is destination's whole connected component, the guard above
+    # returns early unless current is in it, and every neighbour of current is
+    # adjacent to current hence in the same component, so `n not in h` never
+    # skips. Instrumented rather than deleted so the claim is verified by the
+    # actual run instead of by argument alone.
+    used_fallback = best is None
+    _stat('spbp', flat=(len(scores) > 1 and max(scores) == min(scores)),
+          fallback=used_fallback)
     return best if best is not None else _progress_fallback(G, current, destination)
 
 
@@ -223,14 +278,17 @@ def da_gpsr_next_hop(G, current, destination,
     dist_cd = float(np.linalg.norm(dest_pos - _pos(G, current)))
 
     best, best_score = None, -float('inf')
+    scores = []
     for n in neighbors:
         dist_nd = float(np.linalg.norm(dest_pos - _pos(G, n)))
         progress = (dist_cd - dist_nd) / max(dist_cd, 1.0)
         occ = float(G.nodes[n].get('queue_occupancy', 0.0))
         lq = float(G.edges[current, n].get('link_quality', 0.0))
         score = w_progress * progress - w_queue * occ + w_quality * lq
+        scores.append(score)
         if score > best_score:
             best_score, best = score, n
+    _stat('da_gpsr', flat=(len(scores) > 1 and max(scores) == min(scores)))
     return best
 
 
@@ -432,12 +490,14 @@ def dpp_next_hop(G, current, destination, V=DPP_V, max_retx=5):
     K = int(max_retx)
     q_cur = float(G.nodes[current].get('queue_len', 0.0))
     best, best_score = None, -float('inf')
+    scores = []
     for n in neighbors:
         q_n = float(G.nodes[n].get('queue_len', 0.0))
         per = min(max(float(G.edges[current, n].get('packet_error_rate', 0.0)),
                      0.0), 0.999999)
         e_att = 1.0 if per < 1e-9 else (1.0 - per ** (K + 1)) / (1.0 - per)
         score = (q_cur - q_n) - V * (e_att - 1.0)
+        scores.append(score)
         if score > best_score:
             best_score, best = score, n
 
@@ -451,6 +511,7 @@ def dpp_next_hop(G, current, destination, V=DPP_V, max_retx=5):
     # collapsing DPP into plain destination-ward progress (byte-identical PDR
     # to GPSR). Always take the argmax, exactly like the corrected
     # backpressure_next_hop.
+    _stat('dpp', flat=(len(scores) > 1 and max(scores) == min(scores)))
     return best
 
 
@@ -483,14 +544,17 @@ def car_next_hop(G, current, destination,
     dist_cd = float(np.linalg.norm(dest_pos - _pos(G, current)))
 
     best, best_score = None, -float('inf')
+    scores = []
     for n in neighbors:
         dist_nd = float(np.linalg.norm(dest_pos - _pos(G, n)))
         progress = (dist_cd - dist_nd) / max(dist_cd, 1.0)
         field = _neighborhood_mean(G, current, n, 'queue_occupancy')
         lq = float(G.edges[current, n].get('link_quality', 0.0))
         score = w_progress * progress - w_field * field + w_quality * lq
+        scores.append(score)
         if score > best_score:
             best_score, best = score, n
+    _stat('car', flat=(len(scores) > 1 and max(scores) == min(scores)))
     return best
 
 
@@ -537,6 +601,7 @@ def spbp_lookahead_next_hop(G, current, destination,
 
     q_cur = float(G.nodes[current].get('queue_len', 0.0))
     best, best_score = None, -float('inf')
+    scores = []
     for n in neighbors:
         if n not in h:
             continue
@@ -544,9 +609,15 @@ def spbp_lookahead_next_hop(G, current, destination,
         lq = float(G.edges[current, n].get('link_quality', 0.0))
         q2 = _neighborhood_mean(G, current, n, 'queue_len')
         score = lq * ((q_cur - q_n) + v_bias * (h_cur - h[n]) - w2 * q2)
+        scores.append(score)
         if score > best_score:
             best_score, best = score, n
 
+    # Same unreachable-fallback note as spbp_next_hop; instrumented, not deleted.
+    used_fallback = best is None
+    _stat('spbp_lookahead',
+          flat=(len(scores) > 1 and max(scores) == min(scores)),
+          fallback=used_fallback)
     return best if best is not None else _progress_fallback(G, current, destination)
 
 
