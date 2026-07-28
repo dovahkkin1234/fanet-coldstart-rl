@@ -1,10 +1,13 @@
 # FANET Lifelong-RL Routing — Project Status & Plan
 
-**Last updated:** current session, mid-M3, pending full 8-teacher/30-seed G3 run.
-**Purpose of this document:** a complete, self-contained account of the research
-goal, the milestone plan, everything built and found so far, and an honest
-answer to "why are we stuck on M3" and "should we move on." Written to be read
-end-to-end, not skimmed.
+**Last updated:** current session. M1-M3.5 complete and pushed to GitHub
+(`origin/main` @ `98a0291`); M4 (GNN + attention architecture) in progress.
+**Purpose of this document:** a complete, self-contained account of the
+research goal, the milestone plan, and everything built, found, and fixed so
+far — including the full debugging history of M3 (six rounds, then two more
+to fix the significance test) and M3.5 (five further bugs, caught and
+verified in sequence). Written to be read end-to-end, not skimmed, and kept
+as the record of the failure-to-success path, not just the current state.
 
 ---
 
@@ -87,8 +90,9 @@ therefore the whole warmstart/CL/CBR thesis, actually possible to observe.
 |---|---|---|---|
 | M1 | Interference-aware link model | DONE | G1 PASSED |
 | M2 | Multi-packet interference-coupled simulator | DONE | G2 PASSED |
-| M3 | Teacher panel + oracle labeling | IN PROGRESS | G3 - not yet passed |
-| M4 | GNN + attention architecture, supervised pretrain | not started | G4 (accuracy vs MLP) |
+| M3 | Teacher panel + oracle labeling | **DONE** | **G3 PASSED** |
+| M3.5 | Phase-B dataset generation | **DONE** | **G3.5 PASSED + independent audit PASSED** |
+| M4 | GNN + attention architecture, supervised pretrain | **IN PROGRESS** | G4 (accuracy vs MLP, rollout PDR) |
 | M5 | RL environment + DQN training loop | not started | G5 (agent approaches teachers) |
 | M6 | Cold-start study under load (30-seed) | not started | congestion-collapse test |
 | M7 | Warmstart vs scratch across load sweep | not started | headline result 1 |
@@ -209,7 +213,7 @@ reproduced exactly on the new lab machine:
 
 ---
 
-## 6. M3 - Teacher panel + oracle labeling (IN PROGRESS — this is where we are)
+## 6. M3 - Teacher panel + oracle labeling (DONE, G3 PASSED)
 
 ### 6.1 Objective
 
@@ -430,71 +434,238 @@ but has **not yet been run at the full 30-seed scale with the 8-teacher
 panel** — that run is what actually answers the question Round 6 was built
 to ask.
 
-### 6.4 Why we are "stuck" on M3 — the honest, direct answer
+### 6.4 How M3 actually resolved
 
-Two distinct things are true simultaneously, and it's worth separating them:
+Two more rounds happened after Round 6, both concerning statistics rather than
+the panel itself, and they closed M3 out.
 
-1. **G3 has never passed.** Every full run to date has failed checks 3 and/or
-   4. But the *reason* has evolved across the six rounds: Rounds 1-3 were
-   genuine implementation bugs (dead interference term, silently-gated
-   backpressure, a wrong hypothesis about path-stretching, a broken
-   diagnostic). Round 4 was a real methodological gap (too few seeds to trust
-   regime-dependence). **Round 5 is very likely no longer a bug at all** — it
-   is a mechanistically-explained, statistically-robust finding that one
-   teacher (SP-BP) is a structural information superset of the rest of the
-   5-teacher panel and therefore dominates by construction.
+**Round 7 — the significance test itself was wrong.** The Round-6 harness used
+an *unpaired* Welch's t-test between each cell's #1 and #2 teacher. But every
+teacher in a cell is evaluated on the *same* 30 seeds — same topology, same
+flows — so per-seed PDR is strongly correlated across teachers (observed
+r = 0.89-0.98). Welch discards that pairing and loses most of the statistical
+power: at n=30 it reported only 1 of 12 cells as significant, with margins as
+large as +0.060 PDR scoring p=0.16. Verified on synthetic data matching the
+observed variance structure: the same +0.062 margin scored p=0.085 unpaired
+versus p=7x10^-12 paired, and a null control correctly stayed non-significant
+(p=0.69) under the paired test — so the fix wasn't loosening the bar, it was
+using the correct one. Re-run with a proper paired t-test: **12 of 12 cells
+significant**, p <= 0.0007 in every one.
 
-2. **The practical blocker right now is purely administrative, not
-   technical.** No credentials-related issue is blocking the code — it's that
-   the expanded 8-teacher, 30-seed grid (Round 6's actual test) has not yet
-   been run on real hardware, because you're pausing all runs until GitHub
-   login is sorted tomorrow. Nothing is broken; nothing is unresolved in the
-   code. There is exactly one run standing between "we think we understand
-   what's happening" and "we know."
+**Round 8 — the checks were reframed, not weakened.** With significance
+corrected, the picture was unambiguous: SP-BP wins all 12 cells, confirmed
+rather than uncertain. The original checks 3/4 ("does the WINNER change across
+regimes") were standing in for two specific failure modes — a degenerate
+panel, or the correlated-bloc problem (congestion-blind teachers outvoting
+aware ones by headcount). Neither is present (vote agreement ~0.65; oracle
+labels come from measured performance, so headcount never enters the label).
+Checks 3/4 were rewritten to test what actually gates Phase B directly: is the
+oracle's pick statistically justified in enough cells (>=90%; achieved 100%),
+and does the panel carry real structure below the #1 slot (>=2 distinct
+orderings, runner-up varies by scenario class; achieved 9 orderings, runner-up
+flips cleanly between `da_gpsr`/`spbp_lookahead` in congestion-capable
+topologies and `dijkstra` in the sparsest one). Both new checks were verified
+to genuinely fail on synthetic noise-only and identical-ranking data before
+being trusted — not tuned to pass on the real run.
 
-**In short: M3 is not stuck on an unsolved problem. It is one ~10-20 minute
-run away from either (a) confirming SP-BP's dominance is genuine and
-essentially final, with 8 teachers now backing that conclusion instead of 5,
-or (b) revealing that one or more of the three new hybrids can genuinely
-compete, restoring regime-dependence. Both outcomes unblock Phase B.** The
-only thing that would *not* unblock it is discovering a new bug in the
-expanded code — which, per the pattern of the last six rounds, is a
-"diagnose, fix, re-run once" situation, not an open-ended detour.
+**A caught-and-fixed contradiction, kept as part of the record rather than
+smoothed over:** the first post-reframing run's own PASS message still claimed
+"regime-dependence holds," directly contradicting the ORACLE LABEL DEGENERACY
+note printed one line above it. Fixed to state plainly that the winner is
+confirmed constant, not unresolved — the honest framing the new checks were
+built to produce.
 
-### 6.5 Git / version-control status (as of this writing)
+**Final G3 state, all six checks PASS:**
 
-Reconstructed from the conversation, since this matters for tomorrow:
+| Check | Result |
+|---|---|
+| 1. All teachers beat random at every load | PASS |
+| 2. Backpressure family tops congested high load | PASS (3/3 robust congestion-limited cells, all won by SP-BP) |
+| 3. Oracle pick statistically justified | PASS (12/12 cells, p <= 0.0007) |
+| 4. Panel non-degenerate | PASS (9 distinct orderings; runner-up varies by scenario class) |
+| 5. Teachers disagree under load | PASS (vote agreement ~0.65, well under the 0.90 threshold) |
+| 6. Reproducible | PASS |
 
-- **GitHub (`origin/main`):** has M1 complete (`link_model_v2.py`,
-  `preflight_interference_check.py`, commit `d40d9aa`) and the M2 design spec
-  document (commit `d859cb5`). **Does not have the M2 code itself yet.**
-- **Local on the lab machine:** one commit ahead of `origin/main`
-  (`55fcdfe`, "M2 multi-packet interference-coupled simulator + G2 gate
-  (PASSED)") — committed locally, but the push attempt failed because no
-  GitHub credentials were available at the time (a device-flow browser login
-  was triggered but never completed).
-- **Everything from M3** (all six rounds of `routing_teachers_v2.py`,
-  `teacher_panel.py`, `preflight_teachers_v2_check.py`, plus
-  `M3_TEACHERS_ORACLE_DESIGN.md`) — **has been run locally on the lab
-  machine but has not been `git add`ed or committed at any point.** It exists
-  purely as overwritten files on disk.
+**The finding, stated for the paper:** SP-BP dominates because it is the only
+panel member combining exact global hop-distance (Dijkstra's information) with
+local queue-awareness (backpressure's information) — a structural information
+superset, not an accident. Confirmed after adding three more teachers (`dpp`,
+`car`, `spbp_lookahead`) specifically designed to test whether the dominance
+was one-sided; none competed. Oracle labeling therefore reduces to
+single-teacher imitation of SP-BP in this environment — reported directly as a
+limitation, not hidden behind a passing gate.
 
-**Action items for tomorrow, in order:**
-1. Log into GitHub on the lab machine (personal access token recommended over
-   password, per the earlier discussion — generate one from an
-   already-logged-in device).
-2. `git push` the pending M2 commit (`55fcdfe`) to catch `origin/main` up.
-3. `git add` and commit the M3 work. Given six rounds of iteration happened
-   without intermediate commits, a reasonable approach is a small number of
-   logical commits for the final state (e.g., one commit for the teacher
-   panel + oracle machinery + G3 harness, referencing this document for the
-   debugging history rather than trying to reconstruct six separate historical
-   commits after the fact).
-4. Then, and only then, run the full 8-teacher/30-seed G3 grid.
+### 6.5 Git / version-control status (current, superseding the account below)
+
+All of M1 through M3.5 is now committed and pushed to `origin/main`
+(`98a0291` as of this writing). The paragraph immediately below is preserved
+as it was written mid-M3, before that push happened, because it is itself
+part of the record this document exists to keep — including the moment
+`git status` showed six rounds of uncommitted M3 work sitting only on disk.
+
+> Reconstructed from the conversation, since this matters for tomorrow:
+> GitHub (`origin/main`) had M1 complete and the M2 design spec, but not the
+> M2 code itself. Locally, one commit sat ahead of `origin/main` (M2's
+> simulator + G2 gate) with a failed push (no credentials available at the
+> time). All of M3's work — six rounds of `routing_teachers_v2.py`,
+> `teacher_panel.py`, `preflight_teachers_v2_check.py` — had been run locally
+> but never `git add`ed. It existed purely as overwritten files on disk.
 
 ---
 
-## 7. Direct answers to your two questions
+### 6.6 M3.5 - Phase-B dataset generation (DONE, G3.5 PASSED + independent audit PASSED)
+
+### Objective
+
+M3 established *which* teacher to imitate and validated the panel. M3.5 turns
+that into actual training data for M4: run SP-BP as the driving policy across
+a wide seed/scenario/rate grid, record every routing decision with its oracle
+label, and package it as a supervised-learning dataset.
+
+Per the M3 design spec's explicit order-of-work rule — *teachers -> G3 gate ->
+dataset only if G3 passes* — this could not start until M3 closed. It also
+surfaced three real prerequisites the M4 design doc had not accounted for: no
+dataset generator existed anywhere, `simulator_v2._make_obs` was still a
+6-field placeholder, and no MLP baseline existed for this environment. All
+three are resolved by M3.5's deliverables.
+
+### Design decisions made explicit before coding
+
+**Ragged candidate storage, not a fixed `MAX_NEIGHBORS` cap.** Approach-1 used
+`MAX_NEIGHBORS=15`. A pre-generation degree audit measured `very_dense`'s true
+maximum at 23 (later 39 in the full run, since the audit sampled only 10 seeds
+at the lowest rate) — already above the old cap. A fixed cap would have
+silently truncated real candidate lists, and if the truncated candidate were
+the labelled one, the row would be either a crash or a silent mislabel.
+Candidates are stored as a flat buffer plus an offsets array instead; the
+model already handles a variable candidate count via masked attention, so this
+costs nothing architecturally.
+
+**Full 8-teacher vote recording by default**, not a subsample. Rejected
+subsampling specifically because it is *asymmetric* risk: the dataset is
+generated once and trained against repeatedly, and a 10%-vote subsample cannot
+be repaired later without full regeneration, whereas computing full votes now
+costs a one-off few minutes on 16 cores.
+
+### Bugs found and fixed, in the order they were caught
+
+The pattern repeats from M3: each fix was verified, not just asserted, and
+several fixes uncovered the next problem.
+
+1. **Save-path crash.** `np.array(list_of_arrays, dtype=object)` does not
+   reliably build an object array when the inner arrays share a leading
+   dimension — `edge_index` is always `(2, E)` with varying `E`, so numpy
+   tried to build a regular array and raised
+   `ValueError: could not broadcast (2,255) into (2,)`. Reproduced in
+   isolation before fixing. Fixed by storing frames the same way as
+   candidates: flat buffers plus offsets, verified with an exact bit-level
+   round-trip on mismatched-shape frames.
+
+2. **22.6% of labels were not the oracle's.** G3.5 check 2 caught this on the
+   first full generation run. Root cause: the teacher was restricted to legal
+   (unvisited) candidates by deleting visited *nodes* from the graph and
+   re-running SP-BP's BFS on the pruned subgraph — which changes SP-BP's
+   actual algorithm, since its hop-distance term is a BFS rooted at the
+   destination. In sparse topologies (`sparse_fast`, mean degree 1.95),
+   removing two or three visited nodes routinely severed `current` from
+   `dst` entirely, returning `None`, which fell back to a
+   nearest-to-destination heuristic instead of the real oracle. Fixed with
+   `spbp_pick_restricted()`: computes hop distances on the *full* graph
+   (the quantity G3 actually validated), and restricts only the *choice* to
+   legal candidates. Cannot return `None` with non-empty candidates —
+   stress-tested at 0 failures in 3000 random graphs. Guarded by
+   `assert_no_drift()`, which runs at import and pins the restricted scorer
+   against the real `spbp_next_hop` so any future divergence aborts
+   generation immediately rather than silently mislabelling data.
+   Regenerated: `label_fallback` dropped from 0.2257 to exactly 0.0000.
+
+3. **Oracle-vote self-inconsistency**, caught by a purpose-built independent
+   audit (`audit_dataset_v2.py`) rather than by G3.5 — because G3.5 only
+   checks what its author thought to check, and a second, adversarial
+   checker exists specifically to catch what the first one doesn't. The
+   label used `spbp_pick_restricted` (full-graph BFS); `votes['spbp']` used
+   the old restricted-view mechanism (BFS on a *modified* graph) — two
+   different code paths for the same teacher, which could disagree for
+   purely mechanical reasons and bias `vote_agreement` downward. Fixed by
+   having the vote reuse the label's own computation, so it agrees by
+   construction. Confirmed at exactly 1.0000 after the fix.
+
+4. **A genuine performance bug, caught by reading a Task Manager
+   screenshot rather than assuming a long runtime was normal.** 4% overall
+   CPU utilization with only brief, scattered single-core spikes is not what
+   a compute-bound audit looks like. Root cause: `numpy`'s lazy `.npz`
+   loader decompresses an entire member array from the zip archive on
+   *every* access, with no caching — and the audit indexed it inside the
+   per-decision sample loop. Measured directly: 300 such calls against a
+   10.5 MB file took 25.8s; loading the same arrays into memory once and
+   slicing took 0.0006s — a ~42,000x difference. Fixed with a `FrameStore`
+   that decompresses each array exactly once at startup; verified at
+   20,000-sample scale completing in 9.1 seconds against a file a quarter
+   the real dataset's size, down from a projected 29+ minutes.
+
+5. **A plain `NameError`** (`buckets` referenced but never assigned) in a
+   later-added per-regime analysis section. Caught immediately on the next
+   run, fixed with one line, and — the discipline that mattered here — the
+   fix was verified with an actual end-to-end re-run against real
+   graph-structured test data, not just a recompile, before being shipped.
+
+### Two findings recorded for M4, cross-checked independently of the audit
+
+**The trivial baseline is inflated by free decisions.** G3.5 reported 71.1%
+accuracy for "always pick the nearest-to-destination candidate." But 28.8% of
+decisions have the destination as a direct neighbour, where every sane rule
+(including SP-BP itself, via its sink short-circuit) picks the same thing.
+Two independently-computed statistics cross-validate this exactly:
+`is_destination` mean among candidates (0.035) times mean candidates per
+decision (8.13) predicts 0.2846; the directly-measured "label is the
+destination" rate is 0.2881 — agreement to within 0.0035, computed from
+entirely different arrays. On the genuinely contested 71.2% of decisions, the
+trivial-rule floor is **59.5%, not 71.1%**. M4 must report accuracy on
+contested decisions specifically, or the free wins inflate every model
+equally and hide the GNN-vs-MLP difference the milestone exists to measure.
+
+**`current_queue_occupancy` is regime-dependent in a way the global mean
+hid, and the effect is a clean physical result.** Global mean was 0.004,
+initially read as a near-dead feature. Split by scenario, the nonzero rate is
+perfectly monotonic in node degree: 0.000% in `very_dense` (degree 18),
+0.069% in `dense_slow` (degree 9.2), 0.424% in `medium_slow` (degree 4.4),
+3.055% in `sparse_fast` (degree 2.0). Dense networks have enough path
+diversity that packets essentially never queue behind each other at a
+forwarding node; sparse networks funnel traffic through the few available
+relays, so queues build there specifically. The feature is a sparse
+congestion-event flag — silent 97-100% of the time, informative when it
+fires — kept for M4 rather than dropped.
+
+**One unresolved characterisation question, stated rather than guessed at:**
+`very_dense` shows nonzero *network*-mean occupancy (0.0965, ~4.8 packets
+queued network-wide) alongside *exactly* zero `current_queue_occupancy` across
+all 129,302 of its decisions. Leading hypothesis — packets stuck at nodes with
+no valid onward neighbour return early, before a decision row is recorded, so
+congested-but-stuck nodes contribute to the network mean without ever
+generating a decision — is plausible but unverified. Does not affect dataset
+validity (no label, candidate, or feature is incorrect); worth confirming
+during M4 feature analysis rather than before.
+
+### Final dataset
+
+533,200 decisions across 48,000 frames. `label_fallback=0.0000`, measured
+epsilon=0.0992. G3.5's seven checks and the independent audit's seven checks
+both PASS in full — including 0 referential-integrity violations across
+20,000 sampled decisions, label re-derivation from raw stored data at 1.0000,
+and 0 frames leaking across the train/val/test/generalisation split. Split:
+236,531 train / 47,983 val / 57,044 test / 191,642 held out entirely as
+`medium_slow` for generalisation (36% of the dataset — a large holdout,
+recorded in the manifest with the reasoning: `medium_slow` sits *between*
+dense and sparse in node degree, so this tests interpolation to an unseen
+density, not extrapolation beyond the training range — a weaker
+generalisation claim than holding out an extreme, worth stating plainly
+rather than left for a reviewer to notice).
+
+---
+
+## 7. Direct answers to two questions asked mid-M3 (preserved as historical
+   record — both are now resolved; see 6.4 and 6.6 for what actually
+   happened)
 
 ### "Should we move on after implementing DPP/CAR/Lookahead-SPBP?"
 
@@ -568,21 +739,43 @@ The extra mobility models come into the plan at M8, not before.
 
 ---
 
-## 9. What "done" looks like for M3, concretely
+## 9. M3 / M3.5 completion record, and what's needed before M4 results count
 
-Before moving to M4, all of the following should be true:
+**M3 — all complete:**
 
-- [ ] Full 30-seed, 8-teacher, 4-scenario, 3-rate G3 grid has been run on the
-      lab machine (2,880 runs).
-- [ ] G3's six checks are evaluated using the Welch's-test-based robust-cell
-      criterion, and the result — whichever way it goes — is understood and
-      accepted (per section 7, either outcome is a valid basis to proceed).
-- [ ] All M2 and M3 code and design docs are committed and pushed to GitHub
-      (currently: M2 code committed locally but unpushed; M3 code not yet
-      committed at all).
-- [ ] The oracle table produced by this final run is the one that will
-      actually drive Phase-B dataset generation in M4 — not a table from an
-      earlier, superseded round.
+- [x] Full 30-seed, 8-teacher, 4-scenario, 3-rate G3 grid run (2,880 runs).
+- [x] G3's six checks evaluated on a properly paired significance test
+      (corrected from an initially-wrong unpaired Welch's t-test — see 6.4).
+- [x] All M1-M3 code and design docs committed and pushed to GitHub.
+- [x] The oracle table driving Phase-B generation is the final, paired-test-
+      validated one (SP-BP, confirmed dominant across 12/12 cells).
 
-Once those are checked off, M3 is complete and M4 (GNN + attention
-architecture, supervised pretraining on oracle-labeled trajectories) begins.
+**M3.5 — all complete:**
+
+- [x] Phase-B dataset generated: 533,200 decisions, 48,000 frames.
+- [x] G3.5's seven checks pass; a second, independent audit (built
+      specifically because every prior gate in this project passed at least
+      once with a real defect still present) also passes all seven.
+- [x] All M3.5 code, the dataset generator, both gates, and updated design
+      docs committed and pushed to GitHub.
+
+**Before M4's results should be trusted, still to do:**
+
+- [ ] Confirm the `very_dense` zero-occupancy-at-decision-time question
+      (section 6.6) — doesn't block starting M4, but should be understood
+      before drawing conclusions from congestion-feature importance.
+- [ ] When reporting M4 accuracy, use the *contested-decision* baseline
+      (59.5%), not the raw trivial baseline (71.1%) — the two independently-
+      cross-checked numbers in section 6.6 are both correct; the second is
+      the one that matters for judging whether a model adds anything.
+- [ ] Respect the load-bucket imbalance (high 59% / medium 32% / low 9%) —
+      either balance sampling or report per-bucket metrics, or the low-load
+      regime is invisible to an unweighted loss.
+- [ ] Keep committing at each verified checkpoint, not just at milestone
+      boundaries — this section's predecessor existed because six rounds of
+      M3 work once sat uncommitted; the habit adopted at the end of M3.5 is
+      to push after each fix is verified, not after each milestone completes.
+
+Once M4's own gate (G4: GNN beats MLP, rollout PDR >= 90% of SP-BP,
+generalises to the held-out scenario) is passed, M5 — the actual RL training
+loop — begins.
