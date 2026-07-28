@@ -17,3 +17,5 @@ Thumbs.db
 *.bak
 
 logs/*.log
+
+data/
