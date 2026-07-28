@@ -25,7 +25,6 @@ import networkx as nx
 from mobility import DroneRWP
 import link_model_v2 as lm2
 from models import EnergyModel, NodeQueue
-import routing_teachers_v2 as _rt2
 from routing_teachers_v2 import (queue_aware_greedy_next_hop, backpressure_next_hop,
                                  spbp_next_hop, da_gpsr_next_hop,
                                  etx_dijkstra_next_hop, lq_dijkstra_next_hop,
@@ -427,6 +426,39 @@ class FANETSimulatorV2:
         return interf_mw, n_contenders
 
     # ── decision + forwarding for one packet (one slot) ──────────────────────
+    def _select_next_hop(self, G, pkt, neighbors):
+        """Choose the next hop for `pkt`. OVERRIDABLE EXTENSION POINT.
+
+        Extracted verbatim from _try_forward so subclasses (e.g. the M3.5
+        dataset generator) can substitute a different selection rule WITHOUT
+        duplicating the rest of _try_forward's ARQ / queue / energy logic.
+        Base-class behaviour is byte-identical to the pre-extraction code:
+        actor call, then loop-avoidance override, with the same counters.
+        """
+        c, dst = pkt.current, pkt.dst
+        if self.actor_name == 'random':
+            next_hop = self.actor(G, c, dst, rng=self.rng)   # seeded per episode
+        elif self.actor_name == 'backpressure':
+            next_hop, zerodiff = self.actor(G, c, dst, return_zerodiff_flag=True)
+            if zerodiff:
+                self.n_bp_zerodiff += 1
+        else:
+            next_hop = self.actor(G, c, dst)
+        # avoid revisiting nodes already on this packet's path (loop-free actor).
+        # NOTE: the override picks the first unvisited neighbour rather than
+        # re-scoring with the teacher's own rule, so it is arbitrary. It does not
+        # affect teachers equally -- wandering-prone policies (pure backpressure)
+        # trigger it far more than inherently loop-free shortest-path policies.
+        # Instrumented here so the effect is visible rather than silently folded
+        # into PDR. The M3.5 dataset generator overrides this method precisely to
+        # avoid the arbitrariness: it re-scores the teacher on the visited-
+        # excluded candidate set instead, so the override never fires there.
+        if next_hop is not None and next_hop in pkt.path:
+            self.n_overrides += 1
+            unvisited = [n for n in neighbors if n not in pkt.path]
+            next_hop = unvisited[0] if unvisited else None
+        return next_hop
+
     def _try_forward(self, G, t, pkt):
         """Attempt to forward pkt one hop this slot. Returns True if the packet
         finished (delivered/dropped) this slot, False if it stays active."""
@@ -459,25 +491,7 @@ class FANETSimulatorV2:
         pkt.pending_obs = self._make_obs(G, pkt, neighbors)
 
         self.n_decisions += 1
-        if self.actor_name == 'random':
-            next_hop = self.actor(G, c, dst, rng=self.rng)   # seeded per episode
-        elif self.actor_name == 'backpressure':
-            next_hop, zerodiff = self.actor(G, c, dst, return_zerodiff_flag=True)
-            if zerodiff:
-                self.n_bp_zerodiff += 1
-        else:
-            next_hop = self.actor(G, c, dst)
-        # avoid revisiting nodes already on this packet's path (loop-free actor).
-        # NOTE: the override picks the first unvisited neighbour rather than
-        # re-scoring with the teacher's own rule, so it is arbitrary. It does not
-        # affect teachers equally -- wandering-prone policies (pure backpressure)
-        # trigger it far more than inherently loop-free shortest-path policies.
-        # Instrumented here so the effect is visible rather than silently folded
-        # into PDR; a full fix (re-score on a visited-excluded subgraph) is M4.
-        if next_hop is not None and next_hop in pkt.path:
-            self.n_overrides += 1
-            unvisited = [n for n in neighbors if n not in pkt.path]
-            next_hop = unvisited[0] if unvisited else None
+        next_hop = self._select_next_hop(G, pkt, neighbors)
         if next_hop is None:
             if pkt.hops >= TTL:
                 pkt.dropped = True; pkt.drop_reason = 'ttl_expired'
@@ -585,10 +599,6 @@ class FANETSimulatorV2:
 
     # ── main loop ────────────────────────────────────────────────────────────
     def run(self):
-        # Per-teacher degeneracy counters are module-level in routing_teachers_v2,
-        # so they must be reset per episode or they accumulate across runs (and,
-        # under ProcessPoolExecutor, would silently mix runs sharing a worker).
-        _rt2.reset_teacher_stats()
         n_frames = int(self.duration / FRAME_DT)
         active = []
         time_since_gen = {f['flow_id']: 0.0 for f in self.flows}
@@ -713,10 +723,6 @@ class FANETSimulatorV2:
             'n_decisions': self.n_decisions,
             'override_rate': self.n_overrides / max(self.n_decisions, 1),
             'bp_zerodiff_rate': self.n_bp_zerodiff / max(self.n_decisions, 1),
-            # Per-teacher degeneracy for the ACTOR of this episode: did it ever
-            # abandon its own rule (fallback), or run its rule with no
-            # discriminating signal (flat)? See routing_teachers_v2._TEACHER_STATS.
-            'teacher_stats': _rt2.get_teacher_stats(),
             'mean_tx_attempts': float(np.mean(self.tx_attempts)) if self.tx_attempts else 0.0,
             'max_tx_attempts': int(np.max(self.tx_attempts)) if self.tx_attempts else 0,
             'mean_delay_per_hop_ms': (float(np.mean(self.delivered_delays)) /
