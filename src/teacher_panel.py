@@ -330,6 +330,90 @@ def pearson_r(x, y):
     return float(np.corrcoef(x, y)[0, 1])
 
 
+def holm_bonferroni(pvals, alpha=0.05):
+    """Holm-Bonferroni step-down correction. Controls FAMILY-WISE error rate.
+
+    WHY (reviewer finding M-7): the oracle table runs one paired t-test per
+    cell -- 12 of them, each at alpha=0.05, previously uncorrected. Family-wise
+    Type I error is then ~1-(0.95^12) = 46%. Given the care taken over the
+    paired-vs-unpaired fix, leaving 12 uncorrected tests was a conspicuous and
+    easily-attacked gap.
+
+    Holm is PRIMARY: it controls FWER (strictest standard, hardest to argue
+    with) while being uniformly more powerful than plain Bonferroni.
+
+    Returns (adjusted p in ORIGINAL order, reject flags).
+    """
+    p = np.asarray(pvals, dtype=float)
+    m = p.size
+    if m == 0:
+        return np.array([]), np.array([], dtype=bool)
+    order = np.argsort(p)
+    p_sorted = p[order]
+    # multiply the k-th smallest by (m-k+1), then enforce monotonicity
+    adj_sorted = np.clip(np.maximum.accumulate((m - np.arange(m)) * p_sorted), 0.0, 1.0)
+    adj = np.empty_like(adj_sorted)
+    adj[order] = adj_sorted
+    # NON-STRICT: Holm's criterion is (m-k+1)*p(k) <= alpha. A strict '<' here
+    # silently failed to reject a hypothesis sitting exactly at alpha -- caught
+    # by _test_corrections(), which is why that test asserts against
+    # hand-computed textbook values rather than trusting the implementation.
+    return adj, adj <= alpha
+
+
+def benjamini_hochberg(pvals, alpha=0.05):
+    """Benjamini-Hochberg step-up correction. Controls FALSE DISCOVERY RATE.
+
+    Reported alongside Holm for context. FDR is arguably the more apt criterion
+    when most tested effects are genuine (as here), but it is less
+    conservative, so it is NOT used to gate.
+
+    Returns (adjusted p in ORIGINAL order, reject flags).
+    """
+    p = np.asarray(pvals, dtype=float)
+    m = p.size
+    if m == 0:
+        return np.array([]), np.array([], dtype=bool)
+    order = np.argsort(p)
+    p_sorted = p[order]
+    ranks = np.arange(1, m + 1)
+    adj_sorted = np.clip(
+        np.minimum.accumulate((m / ranks * p_sorted)[::-1])[::-1], 0.0, 1.0)
+    adj = np.empty_like(adj_sorted)
+    adj[order] = adj_sorted
+    return adj, adj <= alpha
+
+
+def _test_corrections():
+    """Validate both corrections against hand-computable textbook cases.
+
+    Without this, a correction could be silently wrong in the direction that
+    makes results look BETTER -- the failure mode a reviewer punishes hardest.
+    This test already caught one real bug (strict vs non-strict inequality in
+    Holm) before the code shipped."""
+    p = [0.01, 0.02, 0.03, 0.04, 0.05]
+    # Holm, alpha=0.05, m=5: 0.01 <= 0.05/5 rejects; 0.02 > 0.05/4 stops.
+    adj_h, rej_h = holm_bonferroni(p, 0.05)
+    assert rej_h.sum() == 1 and rej_h[0], f"Holm reject pattern wrong: {rej_h}"
+    assert abs(adj_h[0] - 0.05) < 1e-12, f"Holm adj[0]={adj_h[0]}, want 0.05"
+    assert abs(adj_h[1] - 0.08) < 1e-12, f"Holm adj[1]={adj_h[1]}, want 0.08"
+    # BH, alpha=0.05, m=5: largest k with p(k) <= (k/m)*alpha is k=5 -> all
+    adj_b, rej_b = benjamini_hochberg(p, 0.05)
+    assert rej_b.sum() == 5, f"BH should reject all 5; got {rej_b}"
+    assert abs(adj_b[4] - 0.05) < 1e-12, f"BH adj[4]={adj_b[4]}, want 0.05"
+    # the two must be genuinely distinct procedures, not the same one twice
+    p2 = [0.001, 0.03, 0.031, 0.032, 0.9]
+    _, rh = holm_bonferroni(p2, 0.05)
+    _, rb = benjamini_hochberg(p2, 0.05)
+    assert rb.sum() > rh.sum(), f"BH must be more permissive here: {rh.sum()} vs {rb.sum()}"
+    # adjusted must never fall BELOW raw -- a correction cannot help you
+    assert np.all(adj_h >= np.asarray(p) - 1e-12), "Holm adj < raw p"
+    assert np.all(adj_b >= np.asarray(p) - 1e-12), "BH adj < raw p"
+
+
+_test_corrections()
+
+
 def oracle_teacher_for(table, sc_class, bucket, fallback='spbp'):
     """Look up the empirically best teacher for a regime, with graceful
     fallback to the nearest available bucket then to a sane default."""

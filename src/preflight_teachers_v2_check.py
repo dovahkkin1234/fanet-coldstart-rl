@@ -146,7 +146,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from simulator_v2 import FANETSimulatorV2, PANEL
 from teacher_panel import (build_oracle_table, scenario_class, load_bucket,
                            collect_votes, vote_agreement, welch_ttest,
-                           paired_ttest, pearson_r)
+                           paired_ttest, pearson_r,
+                           holm_bonferroni, benjamini_hochberg)
 
 BP_FAMILY = ('backpressure', 'spbp')
 
@@ -218,10 +219,14 @@ def cell_significance(table, table_stats, key, alpha=ALPHA):
     return p, (p < alpha), float('nan')
 
 
-def robust_cells(table, table_stats):
+def robust_cells(table, table_stats, corrected=None):
     """Cells whose #1-vs-#2 difference is statistically significant
     (Welch's t, alpha=0.05) — the subset trustworthy enough to use as evidence
     of regime-dependence at this seed count."""
+    # `corrected` carries the FAMILY-WISE adjusted decisions. When supplied it
+    # takes precedence over the per-test raw decision (reviewer finding M-7).
+    if corrected is not None:
+        return {k: v for k, v in table.items() if corrected.get(k, {}).get('sig')}
     return {k: v for k, v in table.items()
             if cell_significance(table, table_stats, k)[1]}
 
@@ -262,6 +267,25 @@ def main():
         ranked = table[key]
         return ranked[0][1] - ranked[1][1] if len(ranked) > 1 else float('inf')
 
+    # ---- MULTIPLE-COMPARISONS CORRECTION (reviewer finding M-7) -------------
+    # One paired t-test runs per cell. With 12 cells at alpha=0.05 and no
+    # correction the family-wise Type I error rate is ~1-(0.95^12) = 46%.
+    # Holm-Bonferroni is PRIMARY: it controls FWER (the stricter standard,
+    # hardest to argue with) and is uniformly more powerful than plain
+    # Bonferroni. Benjamini-Hochberg FDR is reported alongside for context but
+    # never used to gate. Every significance decision below reads the CORRECTED
+    # value, never the raw per-test one.
+    _keys = sorted(table)
+    _raw_p = [cell_significance(table, table_stats, k)[0] for k in _keys]
+    _holm_p, _holm_rej = holm_bonferroni(_raw_p, ALPHA)
+    _bh_p, _bh_rej = benjamini_hochberg(_raw_p, ALPHA)
+    CORRECTED = {k: {'raw': float(_raw_p[i]), 'holm': float(_holm_p[i]),
+                     'bh': float(_bh_p[i]), 'sig': bool(_holm_rej[i])}
+                 for i, k in enumerate(_keys)}
+    _n_holm = int(sum(1 for k in _keys if CORRECTED[k]['sig']))
+    _n_bh = int(_bh_rej.sum())
+    _n_raw = int(sum(1 for v in _raw_p if v < ALPHA))
+
     # ── Per-cell ranking table ───────────────────────────────────────────────
     print("\n" + "-" * 78)
     print("  ORACLE TABLE  (mean network PDR over seeds, ranked)")
@@ -272,11 +296,14 @@ def main():
         cg = congestion.get(key, 0.0)
         tag = "CONGESTION-limited" if cg >= 0.50 else "range/partition-limited"
         margin = margin_of(key)
-        p_val, sig, r_obs = cell_significance(table, table_stats, key)
-        flag = "" if sig else "  <-- NOT SIGNIFICANT (p>=0.05), not robust evidence"
+        p_val, _, r_obs = cell_significance(table, table_stats, key)
+        cc = CORRECTED.get(key, {})
+        sig = cc.get('sig', False)
+        flag = "" if sig else "  <-- NOT SIGNIFICANT after Holm correction"
         r_s = f" r={r_obs:.2f}" if r_obs == r_obs else ""
         print(f"    {key[0]:<12} {key[1]:<7} [{tag:<23} cong={cg:.2f}] "
-              f"margin={margin:+.3f} p={p_val:.4f}{r_s}{flag}")
+              f"margin={margin:+.3f} p={p_val:.4f} "
+              f"holm={cc.get('holm', float('nan')):.4f}{r_s}{flag}")
         print(f"        {line}")
 
     # ── Random baseline for the sanity floor ─────────────────────────────────
@@ -342,6 +369,35 @@ def main():
         print(f"    rate={pr:<5.2f} bucket={bucket:<7}")
         print(f"        fallback: {fb_s if fb_s else '(no instrumented teacher reported)'}")
         print(f"        flat    : {fl_s if fl_s else '(no instrumented teacher reported)'}")
+    # GUARD: distinguish "measured zero" from "measured nothing". The
+    # degeneracy plumbing was once silently dropped from simulator_v2, after
+    # which this section reported "fallback rate 0.000 across the panel" for
+    # several runs while measuring NOTHING -- a safety check that had become a
+    # no-op reporting success. If every teacher reports identically zero for
+    # BOTH fallback and flat, that is not a clean result, it is a dead
+    # instrument: backpressure is known to sit near 0.69 flat, so an all-zero
+    # panel is diagnostic of a broken pipeline, not of healthy teachers.
+    _all_flat_zero = all(
+        v == 0.0
+        for pr in args.rates
+        for v in diagnostics.get(med_keys[pr], {}).get('flat', {}).values())
+    _any_flat_reported = any(
+        diagnostics.get(med_keys[pr], {}).get('flat')
+        for pr in args.rates)
+    if (not _any_flat_reported) or _all_flat_zero:
+        print()
+        print("    *** DEGENERACY INSTRUMENT APPEARS DEAD ***")
+        print("    Every teacher reports flat=0.000 AND fallback=0.000. backpressure")
+        print("    is independently known to sit near 0.69 flat (its queue gradient")
+        print("    is zero ~64% of the time -- see the bp_zerodiff line above), so an")
+        print("    all-zero panel means the measurement is not running, NOT that the")
+        print("    teachers are healthy.")
+        print("    LIKELY CAUSE: simulator_v2 is missing the three lines that reset")
+        print("    and collect routing_teachers_v2._TEACHER_STATS. Check that")
+        print("    simulator_v2.py contains 'import routing_teachers_v2 as _rt2',")
+        print("    a reset_teacher_stats() call in run(), and 'teacher_stats' in")
+        print("    _metrics(). DO NOT read the reassuring message above as a pass.")
+
     offenders = {t: r for t, r in worst_fallback.items() if r > 0.0}
     if offenders:
         print()
@@ -352,8 +408,13 @@ def main():
         print("    in the table above does NOT represent the algorithm it is named after.")
     else:
         print()
-        print("    No teacher took a fallback path on any decision (fallback rate 0.000")
-        print("    across the panel). Every teacher ran its own rule on every call.")
+        if _any_flat_reported and not _all_flat_zero:
+            print("    No teacher took a fallback path on any decision (fallback rate")
+            print("    0.000 across the panel), and the instrument is confirmed LIVE")
+            print("    (nonzero flat rates reported). Every teacher ran its own rule.")
+        else:
+            print("    (fallback all-zero, but see the DEAD INSTRUMENT warning above --")
+            print("     this is NOT a clean result until the instrument is confirmed live)")
 
     # ── Vote agreement (lightweight, single-seed graph sample; supplementary) ─
     print("\n" + "-" * 78)
@@ -399,8 +460,7 @@ def main():
     CONG_LIMITED = 0.50
     high_cells = [k for k in table if k[1] == 'high']
     cong_high = [k for k in high_cells if congestion.get(k, 0.0) >= CONG_LIMITED]
-    cong_high_robust = [k for k in cong_high
-                        if cell_significance(table, table_stats, k)[1]]
+    cong_high_robust = [k for k in cong_high if CORRECTED.get(k, {}).get('sig')]
 
     def bp_ok(k):
         ranked = table[k]
@@ -421,7 +481,7 @@ def main():
     win_counts_all = Counter(cell_winners_all)
     top_teacher_all, top_wins_all = win_counts_all.most_common(1)[0]
 
-    r_cells = robust_cells(table, table_stats)
+    r_cells = robust_cells(table, table_stats, corrected=CORRECTED)
     cell_winners_robust = [ranked[0][0] for ranked in r_cells.values()]
     all_winners_robust = set(cell_winners_robust)
 
@@ -478,11 +538,11 @@ def main():
         ("1. All teachers beat random at every load", c1,
          "; ".join(f"r{pr}: {worst_teacher_by_rate[pr]:.3f}>{random_by_rate[pr]:.3f}"
                    for pr in args.rates)),
-        ("2. Backpressure family tops congested HIGH load (robust cells)", c2,
+        ("2. Congestion-aware teacher tops congested HIGH load (robust)", c2,
          f"robust congestion-limited high cells: {cong_high_robust} "
          f"(of {len(cong_high)} congestion-limited total)"),
-        ("3. Oracle pick statistically justified (paired t, per cell)", c3,
-         f"{len(r_cells)}/{len(table)} cells significant "
+        ("3. Oracle pick justified (paired t + Holm correction)", c3,
+         f"{len(r_cells)}/{len(table)} significant after Holm "
          f"({100*frac_justified:.0f}%, need >={100*ORACLE_JUSTIFIED_FRAC:.0f}%)"),
         ("4. Panel non-degenerate (ranking carries regime structure)", c4,
          f"{distinct_orders_robust} distinct orderings; "
@@ -495,11 +555,28 @@ def main():
     ]
     for name, ok, detail in checks:
         print(f"    [{'PASS' if ok else 'FAIL'}] {name:<52} {detail}")
+    print(f"    [INFO] {'Multiple-comparisons correction (M-7)':<52} "
+          f"raw p<a: {_n_raw}/{len(_keys)}, Holm: {_n_holm}, BH: {_n_bh}")
     print(f"    [INFO] {'Oracle dominance, ALL cells (unfiltered)':<52} "
           f"{top_teacher_all} wins {top_wins_all}/{len(cell_winners_all)} cells "
           f"({100*top_wins_all/len(cell_winners_all):.0f}%)")
     print(f"    [INFO] {'BP zero-gradient rate by bucket':<52} "
           f"{ {b: round(v, 3) for b, v in bpzd_by_bucket.items()} }")
+    _bpzd = max(bpzd_by_bucket.values()) if bpzd_by_bucket else 0.0
+    if _bpzd > 0.5:
+        print(f"    [WARN] {'QUEUE DIFFERENTIAL IS INOPERATIVE':<52} "
+              f"zero-gradient on {100*_bpzd:.0f}% of decisions")
+        print("           The packet is DEQUEUED before its routing decision is")
+        print("           recorded, so the current node's queue Q_v is ~always 0")
+        print("           (M3.5 measured exactly 0.000% nonzero in very_dense).")
+        print("           Backpressure's defining term (Q_v - Q_u) therefore")
+        print("           reduces to plain candidate-queue avoidance (-Q_u); the")
+        print("           SP-BP component ablation confirmed this independently:")
+        print("           swapping the differential for candidate-only queue costs")
+        print("           EXACTLY 0.0000 PDR across all 12 cells.")
+        print("           CONSEQUENCE: check 2 must NOT be reported as evidence")
+        print("           that backpressure-style routing wins. SP-BP passes it")
+        print("           while performing no backpressure at all.")
     if len(all_winners_robust) == 1:
         only = sorted(all_winners_robust)[0]
         print(f"    [INFO] {'ORACLE LABEL DEGENERACY -- read before Phase B':<52} "
