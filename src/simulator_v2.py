@@ -31,6 +31,15 @@ from routing_teachers_v2 import (queue_aware_greedy_next_hop, backpressure_next_
                                  arq_etx_next_hop, dpp_next_hop, car_next_hop,
                                  spbp_lookahead_next_hop, random_next_hop)
 from routing_teachers import dijkstra_next_hop, gpsr_next_hop
+# Per-teacher degeneracy counters live at module level in routing_teachers_v2.
+# RESTORED after being silently lost: the m35 package rebuilt this file from a
+# stale base, dropping the three lines below. The harness then reported
+# "fallback rate 0.000 across the panel" for several runs while measuring
+# NOTHING -- a safety check that had quietly become a no-op reporting success.
+import routing_teachers_v2 as _rt2
+from routing_teachers_v3_local import (spbp_k1_next_hop, spbp_k2_next_hop,
+                                       spbp_k3_next_hop, spbp_k4_next_hop,
+                                       spbp_kinf_next_hop)
 
 # ── Fixed simulation constants ───────────────────────────────────────────────
 TTL            = 20
@@ -93,6 +102,16 @@ TEACHERS = {
     # candidates / retained for reporting
     'arq_etx':            arq_etx_next_hop,
     'etx_dijkstra':       etx_dijkstra_next_hop,
+    # LOCALITY-LIMITED SP-BP variants (reviewer findings M-1/M-2): quantify what
+    # SP-BP's global BFS hop-distance is actually worth, by restricting it to a
+    # k-hop information horizon -- exactly what a k-layer GNN can propagate and
+    # what a k-hop distributed protocol can maintain. NOT panel members; used
+    # only by the locality-cost experiment.
+    'spbp_k1':            spbp_k1_next_hop,
+    'spbp_k2':            spbp_k2_next_hop,
+    'spbp_k3':            spbp_k3_next_hop,
+    'spbp_k4':            spbp_k4_next_hop,
+    'spbp_kinf':          spbp_kinf_next_hop,
     # aliases / baselines
     'queue_aware_greedy': queue_aware_greedy_next_hop,   # == da_gpsr (M2 compat)
     'random':             random_next_hop,
@@ -327,6 +346,11 @@ class FANETSimulatorV2:
         Edge link_quality here is the BASE (interference-free) value; the actual
         per-hop SINR under this slot's interference is computed at forward time."""
         G = nx.Graph()
+        # Radio range recorded as graph metadata. Additive only -- no teacher in
+        # the M3 panel reads it. The locality-limited variants in
+        # routing_teachers_v3_local use it to scale their geographic fallback,
+        # which is legitimate: a node knows its own radio's range.
+        G.graph['comm_range'] = self.comm_range
         for d in self.drones:
             G.add_node(d.id, x=d.x, y=d.y, z=d.z, vx=d.vx, vy=d.vy, vz=d.vz,
                        energy=self.energy[d.id],
@@ -580,6 +604,14 @@ class FANETSimulatorV2:
         })
         pkt.pending_obs = None
 
+    def _on_packet_generated(self, G, pkt):
+        """Overridable no-op hook, called once per packet at generation with the
+        CURRENT frame graph. Exists so analyses can record generation-time
+        conditions -- notably whether the destination was reachable AT ALL --
+        without duplicating run()'s loop. Base class does nothing, so behaviour
+        is unchanged."""
+        pass
+
     def _finish_packet(self, pkt):
         if pkt.delivered:
             self.n_delivered += 1
@@ -599,6 +631,10 @@ class FANETSimulatorV2:
 
     # ── main loop ────────────────────────────────────────────────────────────
     def run(self):
+        # Counters are module-level, so they must be reset per episode or they
+        # accumulate across runs -- and under ProcessPoolExecutor would silently
+        # mix episodes sharing a worker.
+        _rt2.reset_teacher_stats()
         n_frames = int(self.duration / FRAME_DT)
         active = []
         time_since_gen = {f['flow_id']: 0.0 for f in self.flows}
@@ -627,6 +663,7 @@ class FANETSimulatorV2:
                     self.n_generated_predrain += 1
                     self.packet_counter += 1
                     self.n_generated += 1
+                    self._on_packet_generated(G, pkt)
                     # admit to source queue (tail-drop if full)
                     if self.queues[f['source_id']].enqueue(pkt):
                         active.append(pkt)
@@ -723,6 +760,10 @@ class FANETSimulatorV2:
             'n_decisions': self.n_decisions,
             'override_rate': self.n_overrides / max(self.n_decisions, 1),
             'bp_zerodiff_rate': self.n_bp_zerodiff / max(self.n_decisions, 1),
+            # Per-teacher degeneracy for THIS episode's actor: did it abandon
+            # its own rule (fallback), or run it with no discriminating signal
+            # (flat)? See routing_teachers_v2._TEACHER_STATS.
+            'teacher_stats': _rt2.get_teacher_stats(),
             'mean_tx_attempts': float(np.mean(self.tx_attempts)) if self.tx_attempts else 0.0,
             'max_tx_attempts': int(np.max(self.tx_attempts)) if self.tx_attempts else 0,
             'mean_delay_per_hop_ms': (float(np.mean(self.delivered_delays)) /
