@@ -123,11 +123,120 @@ def bianchi_tau_p(n_contenders, W=CW_MIN, m=BACKOFF_STAGES, iters=200, tol=1e-10
     return float(tau), float(p)
 
 
+def bianchi_collision_prob_unsaturated(other_activities, W=CW_MIN,
+                                       m=BACKOFF_STAGES, iters=300, tol=1e-12):
+    """Collision probability for a NON-SATURATED, HETEROGENEOUS station set.
+
+    WHY THIS EXISTS (reviewer finding M-4)
+    --------------------------------------
+    Bianchi (2000) derives its fixed point under the SATURATION assumption --
+    every station always has a packet queued. Our measured node activity is
+    0.02-0.09 and mean queue occupancy is under 0.14, so the network is firmly
+    non-saturated and the saturated model is being applied outside its stated
+    regime. The standard corrections in the literature (Malone, Duffy & Leith,
+    IEEE/ACM ToN 2007; Liaw et al.) add an idle/empty-buffer state for exactly
+    this reason.
+
+    THE SECOND, WORSE PROBLEM THIS ALSO FIXES
+    -----------------------------------------
+    The previous call site did `n_cont = 1 + int(round(sum of activities))` and
+    fed that integer to the saturated model. Because Bianchi returns exactly 0
+    for n <= 1, any activity summing below 0.5 produced p_collision == 0.0
+    EXACTLY. Measured: at 15 carrier-sense neighbours, activity 0.02 gave
+    p_coll = 0.00000 where this model gives 0.031. p_collision was a STEP
+    FUNCTION of load with a hard-zero plateau, and our operating range sat
+    mostly inside that plateau -- so MAC contention was modelled as exactly
+    absent much of the time. Rounding a continuous expectation to an integer
+    station count also produced discontinuous jumps (0 -> 0.105 -> 0.178).
+
+    THE MODEL
+    ---------
+    Keep the standard Bianchi backoff chain for tau (the per-slot transmission
+    probability of a station that HAS a packet), but let each station k
+    contend only when its buffer is non-empty, which happens with probability
+    q_k. The effective per-slot transmission probability of station k is then
+    q_k * tau, and the collision probability seen by the tagged station is
+
+        p = 1 - prod_k (1 - q_k * tau)
+
+    solved jointly with tau as a fixed point. Taking the product over
+    individual q_k (rather than using a mean) handles HETEROGENEOUS activity
+    directly, which matters here because congested and idle nodes coexist by
+    design -- that asymmetry is the whole congestion-collapse mechanism.
+
+    HONEST SCOPE: this is the standard "effective transmission probability"
+    approximation to the non-saturated case, NOT a reimplementation of the full
+    Malone-Duffy-Leith Markov chain. It corrects the saturation assumption and
+    removes the quantisation defect; it does not model post-backoff or finite
+    buffer occupancy states. Stated as an approximation rather than claimed as
+    MDL.
+
+    Args:
+        other_activities: buffer-nonempty probabilities q_k of the OTHER
+                          stations in carrier-sense range (tagged station
+                          excluded).
+    Returns:
+        p_collision in [0, 1].
+    """
+    q = np.asarray(other_activities, dtype=float)
+    q = q[q > 0.0]
+    if q.size == 0:
+        return 0.0
+    p = 0.0
+    for _ in range(iters):
+        two_p = 2.0 * p
+        pow_term = (two_p ** m) if two_p < 1.0 else 1.0
+        den = (1.0 - two_p) * (W + 1) + p * W * (1.0 - pow_term)
+        tau = 1.0 if abs(den) < 1e-15 else 2.0 * (1.0 - two_p) / den
+        tau = min(max(tau, 0.0), 1.0)
+        # product form handles heterogeneous per-station activity
+        p_new = 1.0 - float(np.prod(1.0 - np.clip(q * tau, 0.0, 1.0)))
+        if abs(p_new - p) < tol:
+            p = p_new
+            break
+        p = p_new
+    return float(min(max(p, 0.0), 1.0))
+
+
+def _test_unsaturated_collision():
+    """Validate the non-saturated model against properties it must satisfy.
+
+    Written because the model it replaces passed casual inspection while
+    returning exactly zero across much of the operating range."""
+    # q=1 for all stations must reproduce the SATURATED model
+    for n in (2, 3, 5, 10):
+        sat = bianchi_collision_prob(n)
+        uns = bianchi_collision_prob_unsaturated([1.0] * (n - 1))
+        assert abs(sat - uns) < 1e-9, (
+            f"q=1 must reduce to saturated Bianchi: n={n} sat={sat} uns={uns}")
+    # q=0 -> no contention
+    assert bianchi_collision_prob_unsaturated([0.0, 0.0]) == 0.0
+    assert bianchi_collision_prob_unsaturated([]) == 0.0
+    # monotone increasing in activity, and SMOOTH (no step-function plateau,
+    # which is exactly the defect this replaces)
+    qs = [0.01 * i for i in range(1, 26)]
+    vals = [bianchi_collision_prob_unsaturated([q] * 14) for q in qs]
+    assert all(vals[i] <= vals[i + 1] + 1e-12 for i in range(len(vals) - 1)), \
+        "must be monotone in activity"
+    jumps = [vals[i + 1] - vals[i] for i in range(len(vals) - 1)]
+    assert max(jumps) < 0.05, f"must be smooth; largest step {max(jumps):.4f}"
+    assert vals[0] > 0.0, "must NOT return a hard zero at low activity"
+    # monotone increasing in the number of contending stations
+    byn = [bianchi_collision_prob_unsaturated([0.05] * k) for k in range(1, 20)]
+    assert all(byn[i] <= byn[i + 1] + 1e-12 for i in range(len(byn) - 1)), \
+        "must be monotone in station count"
+
+
 def bianchi_collision_prob(n_contenders):
     """MAC-layer collision probability for a station contending against
     (n_contenders - 1) others in carrier-sense range."""
     _, p = bianchi_tau_p(n_contenders)
     return p
+
+
+# Validation runs here, AFTER both collision models are defined -- the test
+# compares them against each other, so it cannot execute earlier.
+_test_unsaturated_collision()
 
 
 # ── Core link-feature computation ────────────────────────────────────────────

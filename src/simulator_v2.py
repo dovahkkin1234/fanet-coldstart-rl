@@ -199,6 +199,27 @@ class FANETSimulatorV2:
                                                 lm2.SHADOWING_SIGMA_DB))
         self.act_max = float(config.get('act_max', ACT_MAX))
         self.max_retx = int(config.get('max_retx', DEFAULT_MAX_RETX))  # ARQ limit
+        # Calibration knobs promoted from module globals to per-instance config
+        # (reviewer finding M-5). ACT_BETA=0 and the ARQ limit were both chosen
+        # during M2 bring-up BECAUSE they produced the congestion coupling the
+        # thesis needs -- so their influence must be sweepable to show the
+        # conclusions are not artifacts of those choices. Defaults are the
+        # locked values, so behaviour is unchanged unless explicitly overridden.
+        # They are instance attributes rather than module globals specifically
+        # because module globals set in the parent do NOT propagate to
+        # ProcessPoolExecutor workers under Windows spawn.
+        self.act_beta = float(config.get('act_beta', ACT_BETA))
+        self.if_range_mult = float(config.get('if_range_mult',
+                                              lm2.INTERFERENCE_RANGE_MULT))
+        # MAC collision model (reviewer finding M-4). 'saturated' is the
+        # original: round the summed activity to an integer station count and
+        # apply Bianchi's SATURATED fixed point. 'unsaturated' keeps each
+        # station's individual activity and uses the non-saturated form.
+        # DEFAULT REMAINS 'saturated' DELIBERATELY so G2's regression constant
+        # (PDR 0.310714) still reproduces and the change can be MEASURED rather
+        # than silently absorbed. The comparison experiment decides whether the
+        # default flips, and a new regression constant is then recorded.
+        self.collision_model = str(config.get('collision_model', 'saturated'))
 
         # Drain phase (design spec M3 §6): stop generating new packets this many
         # seconds before episode end, but keep simulating so in-flight packets
@@ -324,10 +345,18 @@ class FANETSimulatorV2:
 
         p_interf = 1.0 - p_clear
 
-        # Bianchi contention from carrier-sense neighbours of the transmitter
-        n_cont = 1 + int(round(float(self.activity[(d_to_i <= cs_range)].sum()
-                                     - self.activity[i])))
-        p_coll = lm2.bianchi_collision_prob(max(n_cont, 1))
+        # MAC contention from carrier-sense neighbours of the transmitter.
+        cs_mask = (d_to_i <= cs_range)
+        if self.collision_model == 'unsaturated':
+            # Pass each neighbour's OWN activity. Heterogeneity matters here by
+            # design: congested and idle nodes coexist, and that asymmetry is
+            # the congestion-collapse mechanism -- a mean would blur it away.
+            p_coll = lm2.bianchi_collision_prob_unsaturated(
+                [a for k, a in enumerate(self.activity) if cs_mask[k] and k != i])
+        else:
+            n_cont = 1 + int(round(float(self.activity[cs_mask].sum()
+                                         - self.activity[i])))
+            p_coll = lm2.bianchi_collision_prob(max(n_cont, 1))
 
         per = 1.0 - (1.0 - per_clean) * (1.0 - p_interf) * (1.0 - p_coll)
         # FIX (M3 audit): lq must fold in MAC contention too. Previously lq was
@@ -359,7 +388,7 @@ class FANETSimulatorV2:
         # Per-frame channel state used to estimate measured link statistics.
         dist_m, rxp_m = self._channel_state()
         cs_range = lm2.CARRIER_SENSE_MULT * self.comm_range
-        if_range = lm2.INTERFERENCE_RANGE_MULT * self.comm_range
+        if_range = self.if_range_mult * self.comm_range
 
         for i, j in itertools.combinations(range(self.N), 2):
             di, dj = self.drones[i], self.drones[j]
@@ -416,7 +445,7 @@ class FANETSimulatorV2:
         for k in range(self.N):
             occ = self.queues[k].occupancy
             nonempty = 1.0 if self.queues[k].length > 0 else 0.0
-            self.activity[k] = min(ACT_ALPHA * occ + ACT_BETA * nonempty,
+            self.activity[k] = min(ACT_ALPHA * occ + self.act_beta * nonempty,
                                    self.act_max)
 
     # ── per-slot interference at a receiver (§1.2) ───────────────────────────
@@ -427,7 +456,7 @@ class FANETSimulatorV2:
         if not self.interference_on:
             return 0.0, 1
         cs_range = lm2.CARRIER_SENSE_MULT * self.comm_range
-        if_range = lm2.INTERFERENCE_RANGE_MULT * self.comm_range
+        if_range = self.if_range_mult * self.comm_range
         rx_pos = self.drones[rx].pos
         tx_pos = self.drones[tx].pos
 
