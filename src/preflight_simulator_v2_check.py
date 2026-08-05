@@ -30,6 +30,90 @@ from simulator_v2 import FANETSimulatorV2, ACT_BETA, ACT_ALPHA, ACT_MAX, DEFAULT
 
 CONGESTION_CAUSES = ('queue_overflow', 'link_error')
 
+# EXPLICIT REGRESSION ANCHOR.
+# Check 6 previously compared two runs of the SAME build to each other, which
+# catches nondeterminism but NOT drift: if a change altered the physics, both
+# runs would drift identically and the check would still pass. The constant was
+# therefore tracked only in notes, outside the code. It is now asserted here.
+#
+# ANCHOR ON THE INTEGER COUNTS, NOT THE PDR FLOAT.
+# The first version of this anchor stored PDR as a float with a 1e-9 tolerance.
+# That failed immediately in practice: PDR is n_delivered/n_generated = 87/280 =
+# 0.31071428571..., the harness displayed it rounded to 0.310714, and the
+# rounded value copied back in differed from the true one by 2.9e-7 -- far
+# outside the tolerance. The two values printed IDENTICALLY in the failure
+# message, which made the report actively confusing.
+#
+# Integers are exact, unambiguous, and safe to copy by hand. There is no
+# tolerance to tune and no rounding to get wrong.
+#
+# Leave as None to record new values (the harness prints exactly what to paste).
+# Update ONLY alongside a deliberate, documented physics change.
+#
+# THE ANCHOR RUNS ARE ACTOR-PINNED. They previously used `args.actor`, so
+# recording the anchor under one actor and re-running the gate under another
+# reported drift that was not drift -- and the message did not say why. The
+# anchors now ignore --actor entirely. Determinism (r1 vs r2) still runs under
+# --actor, because that is a property of the build, not of the anchor.
+REGRESSION_ACTOR = 'dijkstra'
+REGRESSION_DELIVERED = 87
+REGRESSION_GENERATED = 280
+
+# SECOND ANCHOR, LINK-QUALITY-SENSITIVE.
+# 'dijkstra' routes on hop count and ignores link_quality completely, so the
+# primary anchor above CANNOT detect a change to the link model. The M-4
+# collision-model flip is precisely such a change, and this gate would have
+# slept through it. 'spbp' scores on link_quality AND queue occupancy, and is
+# the oracle teacher the M3.5 labels come from, so drift here is drift in the
+# thing every downstream milestone depends on.
+# Two integers. No new machinery. Closes the second-anchor item.
+#
+# THIS IS NOT HYPOTHETICAL. Measured at this gate's default config:
+#     dijkstra : 87/280 saturated  ->  87/280 unsaturated   (blind)
+#     spbp     : 111/280 saturated -> 112/280 unsaturated   (sees it)
+# The M-4 collision-model flip -- a deliberate, documented physics change --
+# moves the dijkstra anchor by EXACTLY ZERO. Of the two anchors, only the
+# link-quality-sensitive one can detect the change that was just made.
+REGRESSION_LQ_ACTOR = 'spbp'
+REGRESSION_LQ_DELIVERED = 112
+REGRESSION_LQ_GENERATED = 280
+
+
+def _anchor_block(label, res, delivered, generated, actor, fname):
+    """Compare one run against one recorded pair. Returns (ok, armed).
+
+    Unset => ok=True, armed=False. A gate that cannot pass on a fresh checkout
+    is useless, so bootstrapping must not FAIL -- but an unarmed gate must
+    never LOOK like a passing one, hence the banner and the armed flag that
+    reaches the verdict line.
+    """
+    if delivered is None or generated is None:
+        print(f"\n    ┌─ [{label} ANCHOR NOT SET] — check 6 is NOT protecting "
+              f"against drift ─┐")
+        print(f"    │ Copy these lines verbatim into {fname}:")
+        print(f"    │     {label}_DELIVERED = {res['n_delivered']}")
+        print(f"    │     {label}_GENERATED = {res['n_generated']}")
+        print(f"    │ (actor={actor}; PDR {res['n_delivered']}/"
+              f"{res['n_generated']} = {res['network_pdr']:.6f}, shown for")
+        print(f"    │  reference only -- the anchor is the integer counts, so "
+              f"there is")
+        print(f"    │  no rounding to get wrong.)")
+        print(f"    └{'─' * 68}┘")
+        return True, False
+    ok = (res['n_delivered'] == delivered and res['n_generated'] == generated)
+    if not ok:
+        print(f"\n    *** REGRESSION [{label}, actor={actor}]: "
+              f"delivered/generated = {res['n_delivered']}/{res['n_generated']}"
+              f", anchor = {delivered}/{generated} ***")
+        print("    The simulator's behaviour changed. If intentional (a")
+        print("    documented physics change), update BOTH pairs and say so in")
+        print("    the commit. If not, something drifted silently.")
+        if label == 'REGRESSION_LQ':
+            print("    This anchor reads link_quality; the dijkstra anchor does")
+            print("    not. If only this one moved, the change is in the LINK")
+            print("    MODEL, not in topology or queueing.")
+    return ok, True
+
 
 def run(cfg):
     return FANETSimulatorV2(cfg).run()
@@ -132,9 +216,28 @@ def main():
     # ── CHECK 6: reproducibility ─────────────────────────────────────────────
     r1 = run({**base, 'packet_rate': mid, 'interference_on': True, 'actor': args.actor})
     r2 = run({**base, 'packet_rate': mid, 'interference_on': True, 'actor': args.actor})
-    c6 = (r1['n_delivered'] == r2['n_delivered'] and
-          r1['n_dropped'] == r2['n_dropped'] and
-          abs(r1['network_pdr'] - r2['network_pdr']) < 1e-12)
+    determinism = (r1['n_delivered'] == r2['n_delivered'] and
+                   r1['n_dropped'] == r2['n_dropped'] and
+                   abs(r1['network_pdr'] - r2['network_pdr']) < 1e-12)
+
+    # ---- drift, against two ACTOR-PINNED anchors ----
+    # Pinned so that --actor cannot make a matching build look like a
+    # regression. r1 is reused only when its actor already equals the pinned
+    # one, which is the default path and saves a redundant episode.
+    _fname = os.path.basename(__file__)
+    ra = (r1 if args.actor == REGRESSION_ACTOR else
+          run({**base, 'packet_rate': mid, 'interference_on': True,
+               'actor': REGRESSION_ACTOR}))
+    ok_a, armed_a = _anchor_block('REGRESSION', ra, REGRESSION_DELIVERED,
+                                  REGRESSION_GENERATED, REGRESSION_ACTOR, _fname)
+    rb = run({**base, 'packet_rate': mid, 'interference_on': True,
+              'actor': REGRESSION_LQ_ACTOR})
+    ok_b, armed_b = _anchor_block('REGRESSION_LQ', rb, REGRESSION_LQ_DELIVERED,
+                                  REGRESSION_LQ_GENERATED, REGRESSION_LQ_ACTOR,
+                                  _fname)
+    anchored = ok_a and ok_b
+    fully_armed = armed_a and armed_b
+    c6 = determinism and anchored
 
     # ── DELAY SANITY (ARQ calibration diagnostic) ────────────────────────────
     attempts = [m['mean_tx_attempts'] for _, m in rows]
@@ -158,8 +261,13 @@ def main():
          c4, f"activity {acts[0]:.3f}->{acts[-1]:.3f}"),
         ("5. Interference ON/OFF differ",
          c5, f"link_error {le_off}(off) vs {le_on}(on); PDR {m_off['network_pdr']:.3f} vs {m_on['network_pdr']:.3f}"),
-        ("6. Bit-reproducible (fixed seed)",
-         c6, f"PDR {r1['network_pdr']:.6f} == {r2['network_pdr']:.6f}"),
+        ("6. Bit-reproducible + no drift vs anchors",
+         c6, f"determinism={determinism}; "
+             f"{REGRESSION_ACTOR}={ra['n_delivered']}/{ra['n_generated']} "
+             + ('(**UNSET**)' if not armed_a else 'vs anchor OK' if ok_a else 'DRIFT')
+             + f"; {REGRESSION_LQ_ACTOR}={rb['n_delivered']}/{rb['n_generated']} "
+             + ('(**UNSET**)' if not armed_b else 'vs anchor OK' if ok_b else 'DRIFT')
+             + ('' if fully_armed else '  <-- NOT PROTECTING AGAINST DRIFT')),
     ]
     for name, ok, detail in checks:
         print(f"    [{'PASS' if ok else 'FAIL'}] {name:<40} {detail}")

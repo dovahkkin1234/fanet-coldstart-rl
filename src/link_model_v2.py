@@ -242,7 +242,8 @@ _test_unsaturated_collision()
 # ── Core link-feature computation ────────────────────────────────────────────
 
 def compute_link_features_v2(distance_m, interference_mw=0.0,
-                             n_contenders=1, shadowing_db=0.0):
+                             n_contenders=1, shadowing_db=0.0,
+                             p_collision=None):
     """
     Interference-aware link features. Drop-in extension of
     link_model.compute_link_features().
@@ -276,8 +277,23 @@ def compute_link_features_v2(distance_m, interference_mw=0.0,
     per_phy = 1.0 - (1.0 - ber) ** PACKET_BITS
     per_phy = float(np.clip(per_phy, 0.0, 1.0))
 
-    # MAC-layer collision loss (Bianchi). n_contenders<=1 => 0.
-    p_coll = bianchi_collision_prob(n_contenders)
+    # MAC-layer collision loss. If the caller supplies p_collision it is used
+    # directly -- this lets a caller apply the NON-SATURATED model (which needs
+    # per-station activities, not a contender count) without this function
+    # having to know about it. n_contenders<=1 => 0 under the saturated model.
+    if p_collision is None:
+        p_coll = bianchi_collision_prob(n_contenders)
+    else:
+        # ASSERT, do not clamp. A p_collision outside [0,1] can only come from
+        # an upstream bug, and silently folding it to a boundary turns that bug
+        # into a plausible number -- the exact failure signature this project
+        # keeps catching. NaN is caught here too: min/max propagate it without
+        # complaint, so a NaN activity would have flowed straight into per.
+        p_collision = float(p_collision)
+        assert p_collision == p_collision, "p_collision is NaN"
+        assert -1e-9 <= p_collision <= 1.0 + 1e-9, \
+            f"p_collision out of range: {p_collision!r}"
+        p_coll = min(max(p_collision, 0.0), 1.0)   # float-noise clamp only
 
     per_total = 1.0 - (1.0 - per_phy) * (1.0 - p_coll)
     per_total = float(np.clip(per_total, 0.0, 1.0))

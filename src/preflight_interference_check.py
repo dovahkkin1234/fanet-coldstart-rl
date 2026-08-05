@@ -65,10 +65,21 @@ def build_feasible_links(pos, comm_range):
 
 
 def link_quality_under_load(pos, comm_range, links, activity, rng,
-                            shadowing_sigma):
+                            shadowing_sigma, collision_model='unsaturated'):
     """For each feasible link, compute link_quality/PER at a given offered-load
     `activity` (probability a node transmits this slot). Returns arrays
-    (link_quality, per) over all links, one sample per link."""
+    (link_quality, per) over all links, one sample per link.
+
+    SCOPE -- this gate is HOMOGENEOUS in activity. Every carrier-sense peer is
+    given the same `activity`, because G1 sweeps a single scalar offered-load
+    level. simulator_v2 instead passes each node's OWN activity, and its
+    comment is explicit that the heterogeneity is deliberate: congested and
+    idle nodes coexisting is the congestion-collapse mechanism, and a mean
+    blurs it away. So G1 validates the collision model's SHAPE -- monotone in
+    load, no hard-zero plateau, correct v1 reduction at activity 0 -- and NOT
+    that mechanism. Do not cite G1 as evidence about heterogeneous congestion;
+    that evidence comes from G2's load sweep.
+    """
     cs_range = v2.CARRIER_SENSE_MULT * comm_range          # near: defer (CSMA)
     if_range = v2.INTERFERENCE_RANGE_MULT * comm_range     # beyond: negligible
     lq_out, per_out = [], []
@@ -78,10 +89,35 @@ def link_quality_under_load(pos, comm_range, links, activity, rng,
         rx_pos, tx_pos = pos[rx], pos[tx]
 
         # ---- MAC contention: nodes in carrier-sense range of tx ----
+        # Must use the SAME collision model as simulator_v2, or this gate and
+        # the simulator report inconsistent physics for the same scenario.
         cs_nodes = [k for k in range(len(pos))
                     if k != tx and np.linalg.norm(pos[k] - tx_pos) <= cs_range]
-        n_active_cs = int(np.sum(rng.random(len(cs_nodes)) < activity)) if cs_nodes else 0
-        n_contenders = 1 + n_active_cs   # tx itself + active carrier-sense peers
+        # RNG PARITY. The draw is UNCONDITIONAL; only its USE is branch-
+        # dependent. Previously the unsaturated branch skipped it, so the two
+        # models consumed the shared generator at different rates and every
+        # subsequent shadowing draw diverged. Saturated still reproduced its
+        # pre-flip numbers (its branch consumed identically), so nothing
+        # published was wrong -- but a saturated-vs-unsaturated comparison was
+        # UNPAIRED, running on different shadowing realisations, and a small
+        # difference could not be attributed to the collision model. Drawing
+        # unconditionally leaves the saturated path byte-identical and makes
+        # the comparison paired.
+        cs_draw = rng.random(len(cs_nodes)) if cs_nodes else np.empty(0)
+        if collision_model == 'unsaturated':
+            # Every carrier-sense peer is a potential contender that transmits
+            # with probability `activity`; no Bernoulli thresholding and no
+            # rounding to an integer count, so no hard-zero plateau. The peer
+            # list excludes tx, matching simulator_v2's
+            # [a for k, a in enumerate(self.activity) if cs_mask[k] and k != i]:
+            # p_coll is P(some OTHER station transmits in this slot).
+            p_coll_override = v2.bianchi_collision_prob_unsaturated(
+                [activity] * len(cs_nodes))
+            n_contenders = 1
+        else:
+            n_active_cs = int(np.sum(cs_draw < activity)) if cs_nodes else 0
+            n_contenders = 1 + n_active_cs   # tx itself + active carrier-sense peers
+            p_coll_override = None
 
         # ---- Hidden-terminal interference: annulus (cs_range, if_range] of rx ----
         interf_mw = 0.0
@@ -97,9 +133,37 @@ def link_quality_under_load(pos, comm_range, links, activity, rng,
                     interf_mw += v2.rx_power_mw(dk_rx, sh_k)
 
         sh_link = rng.normal(0.0, shadowing_sigma)
-        _, _, lq, per = v2.compute_link_features_v2(
+        _, _, lq_sinr, per = v2.compute_link_features_v2(
             d, interference_mw=interf_mw, n_contenders=n_contenders,
-            shadowing_db=sh_link)
+            shadowing_db=sh_link, p_collision=p_coll_override)
+
+        # FOLD MAC CONTENTION INTO lq -- the M3 audit fix, which had been
+        # applied in simulator_v2 but NOT here.
+        #
+        # compute_link_features_v2 returns link_quality = clip(sinr_db/30,0,1).
+        # That is a pure SINR quantity: p_coll never touches it, only `per`.
+        # simulator_v2._measured_link therefore does its own fold-in --
+        #     lq = lq_clean * p_clear * (1 - p_coll)
+        # -- with the comment that leaving MAC contention out made lq and per
+        # 'describe different physics'. That fix landed in the simulator only.
+        #
+        # MEASURED CONSEQUENCE, before this change: switching --collision_model
+        # moved `per` but left `lq` identical to six decimal places at every
+        # activity level (0.812726 at a=0.02, 0.617758 at 0.06, 0.295316 at
+        # 0.20 -- the SAME under both models). The new --collision_model flag
+        # was steering only half the output, and G1's headline metric IS link
+        # quality. The gate and the simulator were still reporting different
+        # physics for the same scenario, which is exactly what the flag was
+        # added to prevent.
+        #
+        # The hidden-terminal term is deliberately NOT reconciled: this gate
+        # models it as continuous interference power entering SINR, the
+        # simulator as a Bernoulli lethal-interferer indicator (p_clear). Those
+        # are different modelling choices, not an inconsistency, and lq_sinr
+        # already carries this gate's version through the SINR denominator.
+        p_coll_eff = (p_coll_override if p_coll_override is not None
+                      else v2.bianchi_collision_prob(n_contenders))
+        lq = float(np.clip(lq_sinr * (1.0 - p_coll_eff), 0.0, 1.0))
         lq_out.append(lq)
         per_out.append(per)
 
@@ -124,6 +188,10 @@ def main():
                     help='offered-load levels (P(node transmits this slot))')
     ap.add_argument('--shadowing_sigma', type=float, default=v2.SHADOWING_SIGMA_DB)
     ap.add_argument('--seed', type=int, default=42)
+    ap.add_argument('--collision_model', default='unsaturated',
+                    choices=['unsaturated', 'saturated'],
+                    help='must match simulator_v2 default; saturated reproduces '
+                         'the pre-M-4 numbers')
     args = ap.parse_args()
 
     rng = np.random.default_rng(args.seed)
@@ -133,6 +201,7 @@ def main():
     print("=" * 76)
     print(f"  {args.n_drones} drones in {args.area:.0f}x{args.area:.0f} m, "
           f"comm_range={args.comm_range:.0f} m, {args.trials} topologies")
+    print(f"  collision model: {args.collision_model}")
     print(f"  carrier-sense={v2.CARRIER_SENSE_MULT}x, "
           f"interference={v2.INTERFERENCE_RANGE_MULT}x comm_range, "
           f"shadowing sigma={args.shadowing_sigma:.1f} dB")
@@ -153,7 +222,8 @@ def main():
         for a in args.activity:
             # shadowing off at a=0 to test exact v1 reduction; on otherwise
             sig = 0.0 if a == 0.0 else args.shadowing_sigma
-            lq, per = link_quality_under_load(pos, args.comm_range, links, a, rng, sig)
+            lq, per = link_quality_under_load(pos, args.comm_range, links, a, rng,
+                                              sig, args.collision_model)
             per_level[a]['lq'].append(lq)
             per_level[a]['per'].append(per)
 

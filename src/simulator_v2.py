@@ -215,11 +215,35 @@ class FANETSimulatorV2:
         # original: round the summed activity to an integer station count and
         # apply Bianchi's SATURATED fixed point. 'unsaturated' keeps each
         # station's individual activity and uses the non-saturated form.
-        # DEFAULT REMAINS 'saturated' DELIBERATELY so G2's regression constant
-        # (PDR 0.310714) still reproduces and the change can be MEASURED rather
-        # than silently absorbed. The comparison experiment decides whether the
-        # default flips, and a new regression constant is then recorded.
-        self.collision_model = str(config.get('collision_model', 'saturated'))
+        # DEFAULT IS NOW 'unsaturated', flipped after the comparison experiment
+        # showed all four qualitative claims survive it (SP-BP still wins,
+        # headroom still load-monotonic, congestion-aware still beats blind at
+        # high load, link quality still degrades with load) while the
+        # competitive margin moved only -0.7%. 'saturated' is retained for
+        # reproducing pre-flip results and for the comparison itself.
+        #
+        # The saturated path is NOT merely a different approximation -- it
+        # contains a quantisation defect: it rounds summed activity to an
+        # integer station count, and Bianchi returns exactly 0 for n<=1, so
+        # p_collision was EXACTLY ZERO across much of the measured operating
+        # range (activity 0.02-0.09), then jumped discontinuously.
+        #
+        # NOTE ON G2's REGRESSION CONSTANT. Measured at that gate's default
+        # config (30 drones, rate 1.0, seed 42, interference on):
+        #     dijkstra : 87/280 saturated  ->  87/280 unsaturated   (NO CHANGE)
+        #     spbp     : 111/280 saturated -> 112/280 unsaturated   (CHANGED)
+        # The primary anchor runs dijkstra, which routes on hop count and never
+        # reads link_quality, so it is EMPIRICALLY BLIND to this flip. An
+        # earlier draft of this comment said the constant changes with the flip;
+        # for that actor it does not. This is the concrete reason a second,
+        # link-quality-sensitive anchor exists.
+        # Both pairs are recorded in preflight_simulator_v2_check as INTEGER
+        # pairs -- REGRESSION_DELIVERED / REGRESSION_GENERATED for dijkstra and
+        # REGRESSION_LQ_* for spbp -- which that gate now asserts explicitly
+        # rather than only checking run-to-run equality.
+        # (There is no REGRESSION_PDR: the float-PDR anchor was abandoned after
+        # a 2.9e-7 rounding failure made its error message self-contradictory.)
+        self.collision_model = str(config.get('collision_model', 'unsaturated'))
 
         # Drain phase (design spec M3 §6): stop generating new packets this many
         # seconds before episode end, but keep simulating so in-flight packets
