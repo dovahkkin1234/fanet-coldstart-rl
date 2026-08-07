@@ -160,8 +160,19 @@ def _spbp_qscale(G, current, destination, qscale, v_bias=SPBP_V_BIAS):
 
 # Register sweep variants. DA-GPSR weights chosen to bracket SP-BP's effective
 # 50x; SP-BP scales chosen to bracket DA-GPSR's effective 1/50.
-DA_WEIGHTS = [1.0, 5.0, 15.0, 50.0, 150.0]
-SP_SCALES = [0.02, 0.1, 0.3, 1.0, 3.0]
+# MIRRORED GRIDS.
+# The previous pair was not comparable: DOWN sampled 0.02-3x (dense below and
+# around the reference) while UP sampled 1-150x (nothing below the reference,
+# smallest step 5x). Since DA-GPSR is already at -216% of the gap by w=5, that
+# grid could not distinguish "queue weight cannot help DA-GPSR" from "DA-GPSR's
+# queue weight is already at or above its optimum" -- opposite conclusions.
+# UP now has sub-reference resolution; DOWN now extends past its own apparent
+# optimum (q=3 scored +0.0010 ABOVE q=1, so the old grid stopped too early).
+# w=15 kept so the collapse stays visible in the same table; 50 and 150 dropped
+# as pure re-demonstration -- they remain in the previously committed JSON.
+# Configs 12 -> 21, so runs 4320 -> 7560.
+DA_WEIGHTS = [0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0, 5.0, 15.0]
+SP_SCALES = [0.02, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 3.0, 10.0]
 
 for _w in DA_WEIGHTS:
     TEACHERS[f'dagpsr_w{_w:g}'] = (lambda w: (lambda G, c, d: _da_gpsr_w(G, c, d, w)))(_w)
@@ -337,6 +348,29 @@ def main():
         print("     structural ablation must be extended to find where.")
 
     best_w = max(DA_WEIGHTS, key=lambda w: means[f'dagpsr_w{w:g}'])
+    best_q = max(SP_SCALES, key=lambda q: means[f'spbp_q{q:g}'])
+
+    # WHERE DOES EACH REFERENCE SIT ON ITS OWN CURVE? The old grid could not
+    # answer this for DA-GPSR at all: w=1 was its smallest value, so an
+    # optimum below the reference was unobservable by construction.
+    print()
+    print(f"  sweep optima:  DA-GPSR best at w={best_w:g} ({best_da:.4f});  "
+          f"SP-BP best at q={best_q:g} ({means[f'spbp_q{best_q:g}']:.4f})")
+    if best_w < 1.0:
+        print("  ** DA-GPSR's reference weight is ABOVE its optimum -- the panel")
+        print("     default is over-weighting the queue term, so the old UP sweep")
+        print("     was climbing away from the peak from its first step. Any")
+        print("     'queue weight cannot help DA-GPSR' claim is REFUTED.")
+    elif best_w > 1.0:
+        print("  ** DA-GPSR improves with MORE queue weight -- scaling is part of")
+        print("     the gap after all. Report the swept curve, not a single point.")
+    else:
+        print("  ** DA-GPSR's reference weight IS its optimum on this grid, now")
+        print("     bracketed on both sides. The gap is not a weight choice.")
+    if best_q != 1.0:
+        print(f"  ** SP-BP's reference is NOT its optimum either (best q={best_q:g}).")
+        print("     The panel comparison is partly a comparison of tuning; say so.")
+
     if best_da > sp_ref + 0.002:
         print()
         print(f"  ** ALSO: DA-GPSR at w={best_w:g} ({best_da:.4f}) EXCEEDS SP-BP")

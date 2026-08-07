@@ -109,14 +109,30 @@ def _spbp_generic(G, current, destination, use_lq_mult, use_queue_diff,
         h = nx.single_source_shortest_path_length(G, destination)
     except nx.NodeNotFound:
         return None
-    h_cur = float(h.get(current, 999.0))
+    # MIRROR panel spbp_next_hop EXACTLY on unreachability. The previous
+    # h.get(current, 999.0) / h.get(n, 999.0) form kept scoring when `current`
+    # was disconnected from the destination, and treated an unreachable
+    # CANDIDATE as merely 999 hops away instead of excluding it. Panel SP-BP
+    # returns None in the first case and `continue`s in the second.
+    #
+    # This is the same defect experiment_queue_weight.py documents and fixed;
+    # it cost 0.0067 PDR there (0.4056 vs 0.4123) and cost the same here
+    # (spbp_ab_full 0.4061 vs panel spbp 0.4128). It is invisible in dense and
+    # very-dense -- those cells matched panel SP-BP exactly -- and shows up
+    # only in medium (54.7% reachable) and sparse-fast (21.4%), which is where
+    # the ablation's numbers diverged by up to 0.025.
+    if current not in h:
+        return None                       # disconnected from dst this frame
+    h_cur = float(h[current])
     q_cur = float(G.nodes[current].get('queue_len', 0.0))
 
     best, best_score = None, -float('inf')
     for n in neighbors:
+        if n not in h:
+            continue                      # unreachable -> exclude, not score
         q_n = float(G.nodes[n].get('queue_len', 0.0))
         lq = float(G.edges[current, n].get('link_quality', 0.0))
-        hop = v_bias * (h_cur - float(h.get(n, 999.0)))
+        hop = v_bias * (h_cur - float(h[n]))
         if not use_queue:
             qterm = 0.0
         elif use_queue_diff:
@@ -149,6 +165,73 @@ def spbp_ab_additive(G, c, d):
     """Link quality as an additive term instead of a multiplier.
     Isolates whether the MULTIPLICATIVE structure is what matters."""
     return _spbp_generic(G, c, d, False, True, True)
+
+
+def assert_controls():
+    """spbp_ab_full must reproduce panel spbp_next_hop EXACTLY.
+
+    Ported from experiment_queue_weight.assert_controls, which exists because
+    an earlier control passed while the implementation under it was wrong: it
+    only ran when nx.has_path(src, dst) held, so it never exercised the case
+    where some CANDIDATE is unreachable from the destination -- which is
+    exactly where the two implementations diverged. Part A of this very script
+    then measured that unreachability is the COMMON case here (medium_slow 55%
+    reachable, sparse_fast 21%), so the untested branch was being hit
+    constantly.
+
+    Sparse connection probabilities are used ON PURPOSE to force partitions,
+    the number of genuinely partitioned cases is counted, and a non-trivial
+    count is REQUIRED -- so this control cannot pass by only ever walking the
+    easy path again.
+
+    Only spbp_ab_full is checked against the panel. The other three ablations
+    are deliberate structural deviations and have no panel counterpart; their
+    correctness rests on sharing _spbp_generic with the one variant that IS
+    pinned to a reference implementation.
+    """
+    from routing_teachers_v2 import spbp_next_hop
+    rng = np.random.default_rng(0)
+    n_sp = n_partitioned = 0
+    for trial in range(300):
+        n = int(rng.integers(5, 14))
+        p_edge = 0.12 + 0.23 * rng.random()      # sparse -> reliable partitions
+        G = nx.Graph(); G.graph['comm_range'] = 250.0
+        for i in range(n):
+            G.add_node(i, x=float(rng.integers(0, 900)),
+                       y=float(rng.integers(0, 900)), z=100.0, energy=90.0,
+                       queue_occupancy=float(rng.random()),
+                       queue_len=float(rng.integers(0, 6)))
+        for i in range(n):
+            for j in range(i + 1, n):
+                if rng.random() < p_edge:
+                    G.add_edge(i, j, distance=float(rng.integers(50, 250)),
+                               link_quality=float(rng.random()),
+                               packet_error_rate=float(rng.random()) * 0.3)
+        src, dst = 0, n - 1
+        if not list(G.neighbors(src)) or dst not in G:
+            continue
+        try:
+            reach = set(nx.single_source_shortest_path_length(G, dst))
+        except nx.NodeNotFound:
+            continue
+        if any(nb not in reach for nb in G.neighbors(src)) or src not in reach:
+            n_partitioned += 1
+        if spbp_ab_full(G, src, dst) != spbp_next_hop(G, src, dst):
+            raise AssertionError(
+                f"spbp_ab_full diverged from panel spbp (trial {trial}) -- the "
+                f"whole component ablation is then measured against the wrong "
+                f"baseline, which is what produced 0.4061 vs 0.4128")
+        n_sp += 1
+    if n_sp < 50:
+        raise AssertionError(f"control checked too few cases: {n_sp}")
+    if n_partitioned < 20:
+        raise AssertionError(
+            f"control only exercised {n_partitioned} partitioned cases -- too "
+            f"few to trust; it would pass without testing the branch that broke")
+    assert_controls.n_partitioned = n_partitioned
+
+
+assert_controls()
 
 
 ABLATIONS = {
@@ -366,6 +449,9 @@ def main():
     print("\n" + "=" * 78)
     print("  SP-BP MECHANISM EXPERIMENT")
     print("  (follows up the locality result; addresses reviewer finding M-3)")
+    print(f"  control passed at import: spbp_ab_full == panel spbp "
+          f"({getattr(assert_controls, 'n_partitioned', 0)} PARTITIONED "
+          f"graphs exercised)")
     print("=" * 78)
 
     out = {'seeds': list(args.seeds), 'rates': list(args.rates),
