@@ -113,6 +113,29 @@ def main():
     with open(os.path.join(args.data, 'manifest.json')) as f:
         man = json.load(f)
 
+    # Schema compatibility, BEFORE anything reads a feature column. Every
+    # lookup below is name-based -- F.EDGE_FEATURES.index('link_quality'),
+    # F.NODE_FEATURES.index('queue_occupancy'),
+    # {nm: j for j, nm in enumerate(F.QUERY_FEATURES)} -- so a features_v2.py
+    # that has changed since generation does not raise. It silently resolves
+    # the right NAME to the wrong COLUMN. Check B in particular would then
+    # re-derive labels from whatever column now sits at that index and report a
+    # plausible agreement rate. This auditor exists precisely because "every
+    # gate in this project has passed at least once while a real defect was
+    # still present"; skew is the way it would pass while reading noise.
+    _skew = F.assert_manifest_compatible(man, context='audit')
+    if _skew:
+        print("\n" + "=" * 78)
+        print("  AUDIT ABORTED — DATASET/MODULE SCHEMA SKEW")
+        print("=" * 78)
+        for _p in _skew:
+            print(f"    ** {_p}")
+        print()
+        print("    Refusing to audit: name-based column lookups would resolve")
+        print("    against a layout the dataset does not have.")
+        print("=" * 78 + "\n")
+        return 1
+
     n = len(dec['label'])
     offs = dec['cand_offsets']
     cand_flat = dec['cand_flat']

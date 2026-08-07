@@ -1,8 +1,22 @@
 # Cold-Start-Aware Continual RL for Adaptive Packet Routing in FANETs
 
 **Author:** Shirish Giroti (CS23B2041) — IIITDM Kancheepuram  
-**Target Venue:** IEEE ICNC / GLOBECOM 2026  
-**Status:** Phase 5 complete — cold-start variance study (30 seeds)
+**Guide:** Dr. Preeth Raguraman  
+**Target Venue:** IEEE TNSM / TMC / IoT Journal / Ad Hoc Networks (Elsevier) / IEEE TVT  
+**Status:** Approach 2 — M1–M3.5 gate-passed; M4 (GNN+attention supervised pretrain) next
+
+> **Approach 1** (single-packet DQN, cold-start variance study, 30 seeds) is complete and
+> described below. Its ablation of Dueling / reward shaping / curriculum returned uniformly
+> null results for a structural reason: single-packet routing makes queue occupancy
+> identically zero, so no congestion can form. **Approach 2** exists to fix that and is where
+> the contribution now sits. See `docs/APPROACH2_COMPLETE_NOTES.md` and the project state
+> specification for its milestone status.
+>
+> Two files referenced in the Approach-1 structure below are not in this repository:
+> `src/analyze_seed_variance.py` and `configs/rdm_full_configs.yaml`. The 30-seed study's
+> outputs are present under `results/tables/` and `results/checkpoints/`.
+> `src/train_dqn_v3_ddqn_per.py` is likewise absent; its `SumTree` and
+> `PrioritizedReplayBuffer` survive verbatim inside `src/train_dqn_v4a_dueling_rs.py`.
 
 ---
 

@@ -65,6 +65,7 @@ Usage:
 """
 
 import os, sys, argparse
+import json
 import numpy as np
 import networkx as nx
 
@@ -330,6 +331,23 @@ def part_c(seeds, rates, max_workers, quick=False):
     return means
 
 
+def _jsonable(o):
+    """numpy scalars/arrays -> plain Python, recursively. json.dump chokes on
+    np.float32 and on tuple dict keys, both of which the oracle tables use."""
+    import numpy as _np
+    if isinstance(o, dict):
+        return {(str(k) if not isinstance(k, str) else k): _jsonable(v)
+                for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_jsonable(v) for v in o]
+    if isinstance(o, _np.generic):
+        return o.item()
+    if isinstance(o, _np.ndarray):
+        return _jsonable(o.tolist())
+    if isinstance(o, float) and (o != o):
+        return None
+    return o
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seeds', type=int, nargs='+', default=list(range(1, 31)))
@@ -337,6 +355,12 @@ def main():
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--part', choices=['A', 'B', 'C', 'all'], default='all')
     ap.add_argument('--quick', action='store_true')
+    # Findings 2 and 4 rest on this script's numbers and it could not write
+    # them. headroom / locality_cost / collision_model /
+    # calibration_sensitivity all take --out and json.dump; these two never
+    # did, so their results existed only in a terminal.
+    ap.add_argument('--out', default='results/spbp_mechanism.json',
+                    help='write results here; "" disables')
     args = ap.parse_args()
 
     print("\n" + "=" * 78)
@@ -344,12 +368,27 @@ def main():
     print("  (follows up the locality result; addresses reviewer finding M-3)")
     print("=" * 78)
 
+    out = {'seeds': list(args.seeds), 'rates': list(args.rates),
+           'part': args.part, 'quick': bool(args.quick)}
     if args.part in ('A', 'all'):
-        part_a(args.seeds)
+        out['part_a_geo_hop'] = part_a(args.seeds)
     if args.part in ('B', 'all'):
-        part_b(args.seeds)
+        out['part_b'] = part_b(args.seeds)
     if args.part in ('C', 'all'):
-        part_c(args.seeds, args.rates, args.max_workers, args.quick)
+        means = part_c(args.seeds, args.rates, args.max_workers, args.quick)
+        out['part_c_means'] = means
+        full = means.get('spbp_ab_full')
+        if full is not None:
+            out['part_c_cost_of_removal'] = {
+                k: (full - means[k]) for k in
+                ('spbp_ab_noqueue', 'spbp_ab_candqueue', 'spbp_ab_additive')
+                if k in means}
+
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        with open(args.out, 'w') as f:
+            json.dump(_jsonable(out), f, indent=2)
+        print(f"  wrote {args.out}")
 
     print("\n" + "=" * 78 + "\n")
     return 0

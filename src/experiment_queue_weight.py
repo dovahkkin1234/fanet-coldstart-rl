@@ -68,6 +68,7 @@ Usage:
 """
 
 import os, sys, argparse
+import json
 import numpy as np
 import networkx as nx
 
@@ -233,12 +234,33 @@ def assert_controls():
 assert_controls()
 
 
+def _jsonable(o):
+    """numpy scalars/arrays -> plain Python, recursively. json.dump chokes on
+    np.float32 and on tuple dict keys, both of which the oracle tables use."""
+    import numpy as _np
+    if isinstance(o, dict):
+        return {(str(k) if not isinstance(k, str) else k): _jsonable(v)
+                for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_jsonable(v) for v in o]
+    if isinstance(o, _np.generic):
+        return o.item()
+    if isinstance(o, _np.ndarray):
+        return _jsonable(o.tolist())
+    if isinstance(o, float) and (o != o):
+        return None
+    return o
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seeds', type=int, nargs='+', default=list(range(1, 31)))
     ap.add_argument('--rates', type=float, nargs='+', default=RATES)
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--quick', action='store_true')
+    # See the note in experiment_spbp_mechanism.main: this script could not
+    # write its results either, and Finding 4's refutation depends on them.
+    ap.add_argument('--out', default='results/queue_weight.json',
+                    help='write results here; "" disables')
     args = ap.parse_args()
 
     scen = {'medium_slow': SCENARIOS['medium_slow']} if args.quick else SCENARIOS
@@ -323,6 +345,23 @@ def main():
         print("     The M3 oracle table would need re-running with tuned weights,")
         print("     and 'SP-BP dominates' restated as 'aggressive queue avoidance")
         print("     dominates, and SP-BP happened to implement it'.")
+    if args.out:
+        out = {
+            'seeds': list(args.seeds), 'rates': list(args.rates),
+            'da_weights': list(DA_WEIGHTS), 'means': _jsonable(means),
+            'spbp_reference': float(sp_ref), 'dagpsr_reference': float(da_ref),
+            'gap': float(gap),
+            'up_fraction_closed': float(up_closed),
+            'down_fraction_given': float(down_given),
+            'best_da_weight': float(best_w), 'best_da_pdr': float(best_da),
+            'verdict': ('scale_not_structure' if (up_closed > 0.7 and down_given > 0.7)
+                        else 'one_direction_only' if (up_closed > 0.7 or down_given > 0.7)
+                        else 'refuted_structural'),
+        }
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        with open(args.out, 'w') as f:
+            json.dump(out, f, indent=2)
+        print(f"  wrote {args.out}")
     print("=" * 78 + "\n")
     return 0
 

@@ -569,6 +569,15 @@ def main():
         'edge_features': F.EDGE_FEATURES,
         'query_features': F.QUERY_FEATURES,
         'candidate_features': F.CANDIDATE_FEATURES,
+        # Compatibility boundary. Both checkers assert these against the live
+        # features_v2 module and abort on mismatch, so a dataset can never be
+        # validated by code that disagrees with it about column layout.
+        'feature_schema_version': F.FEATURE_SCHEMA_VERSION,
+        # Observability scoping: k = neighbourhood radius over which the two
+        # load aggregates are computed; None = whole-network
+        # (controller-assisted). Recorded so the paper's deployability claim is
+        # traceable to the dataset rather than asserted.
+        'local_horizon': F.LOCAL_HORIZON,
         'norm_constants_per_scenario': {k: F.norm_constants({**BASE, **v})
                                         for k, v in SCENARIOS.items()},
         'max_degree_audit': degrees,

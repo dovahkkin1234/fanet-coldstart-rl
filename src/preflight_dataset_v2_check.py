@@ -25,6 +25,22 @@ THE SEVEN CHECKS:
                              would indicate a feature that is silently dead.
   7. Reproducibility       — regenerating one episode with the same seed yields
                              an identical decision count and identical labels.
+  8. Feature redundancy    — no two columns inside the same feature block carry
+                             the same signal. Check 6 catches DEAD columns
+                             (zero variance); this catches DUPLICATED ones,
+                             which are individually alive and so invisible to
+                             it. Two are checked because two kinds exist:
+                             Pearson |r| for linear duplication (ttl_left and
+                             hops_so_far summed to exactly 1.0), and Spearman
+                             |rho| for monotone-nonlinear duplication (snr was
+                             an invertible function of distance whose LINEAR r
+                             was only -0.93 and would have passed a Pearson-only
+                             screen).
+  0. Schema compatibility  — the manifest's persisted feature lists match the
+                             live features_v2 module. Runs FIRST and aborts on
+                             failure: every other check resolves feature names
+                             against the module, so a skewed manifest makes all
+                             of them meaningless rather than merely wrong.
 
 Usage:
     python src\\preflight_dataset_v2_check.py --data data/phaseB
@@ -38,6 +54,79 @@ import features_v2 as F
 
 EPS_TOL = 0.02          # allowed deviation of measured epsilon from configured
 FALLBACK_MAX = 0.05     # max acceptable label_fallback rate
+
+# Check 8 thresholds. Deliberately not 1.0: float32 storage against float64
+# scoring puts a quantisation floor under any exact identity, the same reason
+# the independent audit's label re-derivation threshold is 0.99.
+PEARSON_MAX = 0.98      # linear duplication
+SPEARMAN_MAX = 0.995    # monotone (possibly nonlinear) duplication
+REDUNDANCY_SAMPLE = 200000
+
+
+def _spearman_matrix(x):
+    """Spearman rho for every column pair = Pearson r on the RANKS.
+
+    Computed with numpy rather than scipy so a gate never depends on an
+    optional import. Ties are broken by argsort position; with float features
+    over 5x10^5 rows exact ties are rare enough not to matter, and any bias
+    from them is toward UNDER-stating rho, i.e. toward missing a redundancy
+    rather than inventing one.
+    """
+    ranks = np.empty_like(x, dtype=np.float64)
+    n = x.shape[0]
+    for j in range(x.shape[1]):
+        order = np.argsort(x[:, j], kind='stable')
+        r = np.empty(n, dtype=np.float64)
+        r[order] = np.arange(n, dtype=np.float64)
+        ranks[:, j] = r
+    return _corr_matrix(ranks)
+
+
+def _corr_matrix(x):
+    """Pearson r for every column pair; constant columns yield 0, not NaN."""
+    xc = x - x.mean(axis=0, keepdims=True)
+    sd = xc.std(axis=0)
+    live = sd > 1e-12
+    out = np.zeros((x.shape[1], x.shape[1]), dtype=np.float64)
+    if live.sum() < 2:
+        return out
+    xs = xc[:, live] / sd[live]
+    c = (xs.T @ xs) / x.shape[0]
+    idx = np.where(live)[0]
+    out[np.ix_(idx, idx)] = c
+    return out
+
+
+def redundancy_report(block_name, arr, names):
+    """Flag column pairs inside one feature block that carry the same signal.
+
+    Returns (offenders, lines). An offender is a pair exceeding EITHER
+    threshold. Both matter: check 6 sees a duplicated column as perfectly
+    healthy, because each copy has normal variance on its own.
+    """
+    if arr is None or arr.ndim != 2 or arr.shape[1] < 2 or arr.shape[0] < 2:
+        return [], []
+    step = max(arr.shape[0] // REDUNDANCY_SAMPLE, 1)
+    x = np.asarray(arr[::step], dtype=np.float64)
+    if x.shape[0] < 2:
+        return [], []
+    if len(names) != x.shape[1]:
+        return ([(block_name, 'SHAPE', 'SHAPE', float('nan'), float('nan'))],
+                [f'    ** {block_name}: {x.shape[1]} columns but '
+                 f'{len(names)} names -- schema skew, cannot check'])
+    pear = _corr_matrix(x)
+    spear = _spearman_matrix(x)
+    offenders, lines = [], []
+    for i in range(x.shape[1]):
+        for j in range(i + 1, x.shape[1]):
+            p, s = abs(pear[i, j]), abs(spear[i, j])
+            if p > PEARSON_MAX or s > SPEARMAN_MAX:
+                offenders.append((block_name, names[i], names[j], p, s))
+                kind = ('linear' if p > PEARSON_MAX else
+                        'monotone (nonlinear -- Pearson alone would MISS this)')
+                lines.append(f'    ** {block_name}: {names[i]} <-> {names[j]}  '
+                             f'|r|={p:.4f} |rho|={s:.4f}  [{kind}]')
+    return offenders, lines
 
 
 def load(data_dir):
@@ -56,6 +145,25 @@ def main():
     args = ap.parse_args()
 
     dec, frm, man = load(args.data)
+
+    # ---- 0. schema compatibility (runs FIRST, aborts on failure) ----
+    skew = F.assert_manifest_compatible(man, context='G3.5')
+    if skew:
+        print("\n" + "=" * 78)
+        print("  GATE G3.5 — ABORTED BEFORE ANY CHECK")
+        print("=" * 78)
+        for p in skew:
+            print(f"    ** {p}")
+        print()
+        print("    The dataset was generated under a DIFFERENT features_v2.py than")
+        print("    the one now importing it. Every check below resolves feature")
+        print("    names against the live module, so running them would produce")
+        print("    plausible numbers against a misaligned column layout rather")
+        print("    than an error. Regenerate the dataset, or check out the")
+        print("    features_v2.py that produced it.")
+        print("=" * 78 + "\n")
+        return 1
+
     n = len(dec['label'])
     offs = dec['cand_offsets']
     cand_flat = dec['cand_flat']
@@ -134,6 +242,24 @@ def main():
     # generate_dataset_v2 with --seeds on a single seed.
     c7 = len(set(man['seeds'])) == len(man['seeds'])
 
+    # ---- 8. feature redundancy ----
+    # Check 6 asks "is any column dead?". This asks "is any column a copy of
+    # another?". A duplicated pair passes check 6 with full marks -- both
+    # copies have healthy variance -- while splitting feature importance across
+    # two columns in the one milestone whose purpose is justifying the
+    # architecture. That is how queue_len survived until a hand comparison of
+    # distributions caught it.
+    red_offenders, red_lines = [], []
+    for _bn, _arr, _names in (
+            ('node', frm['node_feat_flat'], F.NODE_FEATURES),
+            ('edge', frm['edge_feat_flat'], F.EDGE_FEATURES),
+            ('query', qf, F.QUERY_FEATURES),
+            ('candidate', dec['cand_feat_flat'], F.CANDIDATE_FEATURES)):
+        _o, _l = redundancy_report(_bn, _arr, _names)
+        red_offenders += _o
+        red_lines += _l
+    c8 = not red_offenders
+
     # ---- report ----
     print("\n" + "-" * 78)
     print("  DIAGNOSTICS")
@@ -178,6 +304,16 @@ def main():
         print("         construction. It bounds what accuracy can demonstrate.")
     if dead_node or dead_query:
         print(f"    ** DEAD (zero-variance) FEATURES: node={dead_node} query={dead_query}")
+    print(f"    feature redundancy: thresholds |r|>{PEARSON_MAX} or "
+          f"|rho|>{SPEARMAN_MAX}")
+    if red_lines:
+        print("    ** REDUNDANT FEATURE PAIRS (same signal stored twice):")
+        for _l in red_lines:
+            print(_l)
+        print("       Fix in ONE pass -- drop or replace every flagged column,")
+        print("       regenerate once, re-run this gate once. Do not iterate.")
+    else:
+        print("      no redundant pairs inside any block")
 
     print("\n" + "=" * 78)
     print("  VERDICT")
@@ -198,6 +334,9 @@ def main():
          f"finite={nf_finite} dead_node={dead_node} dead_query={dead_query}"),
         ("7. Seed list well-formed (no duplicates)", c7,
          f"{len(man['seeds'])} unique seeds"),
+        ("8. No redundant feature pairs within a block", c8,
+         (f"{len(red_offenders)} offending pair(s)" if red_offenders
+          else f"none (|r|<={PEARSON_MAX}, |rho|<={SPEARMAN_MAX})")),
     ]
     for name, ok, detail in checks:
         print(f"    [{'PASS' if ok else 'FAIL'}] {name:<52} {detail}")
