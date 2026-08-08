@@ -176,10 +176,30 @@ HOP_CAP = 10.0          # hop distances clipped/normalised against this
 # cost to claiming it.
 LOCAL_HORIZON = 2
 
+# Normaliser for neigh_buffered_packets: the count of packets buffered within
+# LOCAL_HORIZON hops. SIZED FROM DATA, not guessed.
+#
+# v1 changed this feature from a GLOBAL in-flight count to a LOCAL one and
+# left the old /100.0 in place. Measured on a regeneration instrumented to
+# store the raw value (28,492 decisions):
+#     mean=102.12  std=101.76  max=393
+#     p50=63  p75=155  p90=267  p95=321  p99=368
+# The raw MEAN was 102 against a normaliser of 100, so 38.77% of decisions
+# clipped to exactly 1.0 and p75..p99 were all exactly 1.0 -- a dead column
+# across the entire high-load tail, which is the regime the congestion thesis
+# is about. The clip happens at extraction, so it could not be repaired in the
+# dataloader; it cost a regeneration.
+#
+# 500 gives zero clipping against the observed max of 393 with 27% headroom.
+# IF THE SCENARIO GRID GETS DENSER, RE-MEASURE. G3.5's saturation diagnostic
+# reports the mass at each column's max precisely so this is noticed rather
+# than rediscovered.
+BUFFERED_REF = 500.0
+
 # Bumped whenever the four feature lists change. Persisted in manifest.json and
 # asserted by both checkers, so a checker can never resolve feature names
 # against a module that disagrees with the dataset it is reading.
-FEATURE_SCHEMA_VERSION = 4
+FEATURE_SCHEMA_VERSION = 5
 
 
 def _assert_schema_sane():
@@ -215,6 +235,7 @@ def norm_constants(cfg):
         'ttl': TTL_REF,
         'lifetime_ref': LIFETIME_REF,
         'hop_cap': HOP_CAP,
+        'buffered_ref': BUFFERED_REF,
         # Degree normaliser. Was max(N-1, 1) read off the live graph and never
         # persisted, so the persist-and-reuse-unchanged guarantee did not cover
         # it. Same value, now auditable. Note it makes normalised degree
@@ -395,7 +416,7 @@ def extract_decision(G, pkt, candidates, nc, h_map, n_inflight,
         max(ttl_ref - pkt.hops, 0.0) / ttl_ref,
         min(dist_cd / max(diag, 1e-6), 1.0),
         G.nodes[c].get('queue_occupancy', 0.0),
-        min(neigh_buffered / 100.0, 1.0),
+        min(neigh_buffered / nc['buffered_ref'], 1.0),
         neigh_mean_occ,
         min(h_cur / nc['hop_cap'], 1.0),
     ], dtype=np.float32)

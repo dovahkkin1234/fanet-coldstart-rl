@@ -155,7 +155,7 @@ import features_v2 as F
 
 check("3a. CANDIDATE_FEATURES is 4 wide", len(F.CANDIDATE_FEATURES) == 4,
       str(F.CANDIDATE_FEATURES))
-check("3b. schema bumped to 4 (v5)", F.FEATURE_SCHEMA_VERSION == 4,
+check("3b. schema at or past 5", F.FEATURE_SCHEMA_VERSION >= 5,
       f"={F.FEATURE_SCHEMA_VERSION}")
 check("3g. packet_error_rate dropped from EDGE_FEATURES",
       'packet_error_rate' not in F.EDGE_FEATURES and len(F.EDGE_FEATURES) == 4,

@@ -123,6 +123,49 @@ def _corr_matrix(x):
     return out
 
 
+SATURATION_REPORT_MIN = 0.10     # only mention columns above this
+
+
+def saturation_report(block_name, arr, names):
+    """Fraction of each column sitting at EXACTLY its observed min / max.
+
+    Check 6 catches dead columns (zero variance); check 8 catches duplicated
+    ones. Neither catches a column that is alive, unique, and CLIPPED -- which
+    is how neigh_buffered_packets shipped with 38.77% of its mass at exactly
+    1.0, through a full G3.5 pass, a clean independent audit, and a
+    purpose-built verifier.
+
+    DIAGNOSTIC ONLY. Binary columns (is_destination, cand_reachable) are
+    legitimately massed at a boundary, and ttl_left is 1.0 whenever hops == 0,
+    which is the commonest state. Separating "genuine mode" from "mis-sized
+    normaliser" automatically is not reliable, and a gate that fired on the
+    former would get tuned away instead of heeded. The distinct-value count is
+    printed so a human can tell them apart at a glance.
+    """
+    if arr is None or arr.ndim != 2 or arr.shape[0] < 2:
+        return []
+    step = max(arr.shape[0] // REDUNDANCY_SAMPLE, 1)
+    x = np.asarray(arr[::step], dtype=np.float64)
+    if len(names) != x.shape[1]:
+        return []
+    lines = []
+    for j in range(x.shape[1]):
+        col = x[:, j]
+        nuniq = len(np.unique(col))
+        if nuniq <= 2:
+            continue                      # binary: boundary mass is the point
+        at_max = float((col == col.max()).mean())
+        at_min = float((col == col.min()).mean())
+        worst = max(at_max, at_min)
+        if worst < SATURATION_REPORT_MIN:
+            continue
+        where = 'max' if at_max >= at_min else 'min'
+        lines.append(
+            f'    {block_name}.{names[j]:<24} {100*worst:5.1f}% at {where} '
+            f'({col.max():.4g} / {col.min():.4g}), {nuniq} distinct values')
+    return lines
+
+
 def redundancy_report(block_name, arr, names):
     """Flag column pairs inside one feature block that carry the same signal.
 
@@ -336,6 +379,24 @@ def main():
         print("         construction. It bounds what accuracy can demonstrate.")
     if dead_node or dead_query:
         print(f"    ** DEAD (zero-variance) FEATURES: node={dead_node} query={dead_query}")
+    sat_lines = []
+    for _bn, _arr, _names in (
+            ('node', frm['node_feat_flat'], F.NODE_FEATURES),
+            ('edge', frm['edge_feat_flat'], F.EDGE_FEATURES),
+            ('query', qf, F.QUERY_FEATURES),
+            ('candidate', dec['cand_feat_flat'], F.CANDIDATE_FEATURES)):
+        sat_lines += saturation_report(_bn, _arr, _names)
+    print(f"    saturation (non-binary columns >= "
+          f"{int(100*SATURATION_REPORT_MIN)}% at a boundary):")
+    if sat_lines:
+        for _l in sat_lines:
+            print(_l)
+        print("      A high share at MAX on a many-valued column usually means")
+        print("      a mis-sized normaliser, and the lost range cannot be")
+        print("      recovered in the dataloader -- the clip happens at")
+        print("      extraction. A share at MIN is often a genuine mode.")
+    else:
+        print("      none")
     print(f"    feature redundancy: thresholds |r|>{PEARSON_MAX} or "
           f"|rho|>{SPEARMAN_MAX}")
     if red_lines:
