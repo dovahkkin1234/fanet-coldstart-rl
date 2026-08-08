@@ -78,16 +78,17 @@
       "n": 1500
     },
     "medium_slow": {
-      "agree_rate": 0.87,
-      "n": 1500
+      "agree_rate": 0.8604151753758053,
+      "n": 1397
     },
     "sparse_fast": {
-      "agree_rate": 0.9793333333333333,
-      "n": 1500
+      "agree_rate": 0.9570637119113573,
+      "n": 722
     }
   },
   "part_c_means": {
     "spbp_ab_full": 0.41283273208273213,
+    "spbp_ab_geohop": 0.41047035834535833,
     "spbp_ab_noqueue": 0.3483225108225108,
     "spbp_ab_candqueue": 0.41283273208273213,
     "spbp_ab_additive": 0.41285545935545936,

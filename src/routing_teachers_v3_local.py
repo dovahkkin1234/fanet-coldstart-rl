@@ -123,7 +123,34 @@ def spbp_khop_next_hop(G, current, destination, k=3, v_bias=SPBP_V_BIAS):
 
     comm_range = _comm_range_of(G)
     dpos = _pos(G, destination)
-    kk = float(k) if (k is not None and k != float('inf')) else 0.0
+    is_global = (k is None or k == float('inf'))
+    kk = 0.0 if is_global else float(k)
+
+    # UNREACHABILITY MUST BE HANDLED EXACTLY AS PANEL SP-BP DOES AT k=inf.
+    # Previously h_of() fell through to the geographic proxy for ANY node
+    # missing from h_known -- including nodes that are genuinely outside the
+    # destination's connected component. At finite k that is correct and
+    # deliberate. At k=inf it is a BUG: h_known is then the destination's whole
+    # component, so a missing node is unreachable, and panel spbp_next_hop
+    # returns None for an unreachable `current` and SKIPS unreachable
+    # candidates rather than scoring them.
+    #
+    # Measured before this fix: 279/345 agreement with panel SP-BP, with
+    # exactly 66 disagreements against 66 partitioned cases -- the divergence
+    # is entirely on partitioned graphs. Same defect that cost spbp_ab_full
+    # 0.0067 PDR.
+    #
+    # THE ASYMMETRY IS INTENTIONAL. Finite-k variants keep the proxy: a router
+    # with a k-hop horizon genuinely cannot tell "unreachable" from "far away",
+    # and modelling that is the whole point of the locality experiment.
+    # Handing finite-k variants global reachability knowledge would corrupt
+    # the very quantity being measured.
+    if is_global:
+        if current not in h_known:
+            return None
+        skip = lambda n: n not in h_known          # noqa: E731
+    else:
+        skip = lambda n: False                     # noqa: E731
 
     def h_of(n):
         if n in h_known:
@@ -136,6 +163,8 @@ def spbp_khop_next_hop(G, current, destination, k=3, v_bias=SPBP_V_BIAS):
     h_cur = h_of(current)
     best, best_score = None, -float('inf')
     for n in neighbors:
+        if skip(n):
+            continue
         q_n = float(G.nodes[n].get('queue_len', 0.0))
         lq = float(G.edges[current, n].get('link_quality', 0.0))
         score = lq * ((q_cur - q_n) + v_bias * (h_cur - h_of(n)))
@@ -175,12 +204,30 @@ def assert_kinf_matches_global(trials=80, seed=0):
     Without this, a difference measured across k could be an artifact of this
     reimplementation rather than of the information horizon -- which would
     invalidate the entire locality experiment. Runs at import.
+
+    STRENGTHENED. The previous version passed for 345 runs while the function
+    it guards disagreed with panel SP-BP on 66 of them. Two reasons, both
+    fixed here:
+
+      1. `if not nx.has_path(G, src, dst): continue` -- it only ever checked
+         src->dst reachability, never CANDIDATE reachability, which is the
+         branch where the two implementations actually differ. This is the
+         identical blind spot documented in experiment_queue_weight's control
+         and fixed again in experiment_spbp_mechanism's. Three files, three
+         controls, the same hole in all three.
+      2. p_edge = 0.4 is dense enough that partitions are rare, so even
+         without (1) the branch was seldom reached.
+
+    Now: sparse p_edge in [0.12, 0.35] to force partitions, no reachability
+    early-continue, and a REQUIRED floor on genuinely partitioned cases so
+    this control cannot pass again by only walking the easy path.
     """
     from routing_teachers_v2 import spbp_next_hop
     rng = np.random.default_rng(seed)
-    checked = 0
-    for _ in range(trials):
+    checked = n_partitioned = 0
+    for _ in range(max(trials, 300)):
         n = int(rng.integers(5, 14))
+        p_edge = 0.12 + 0.23 * rng.random()
         G = nx.Graph()
         G.graph['comm_range'] = 250.0
         for i in range(n):
@@ -190,21 +237,35 @@ def assert_kinf_matches_global(trials=80, seed=0):
                        queue_len=float(rng.integers(0, 6)))
         for i in range(n):
             for j in range(i + 1, n):
-                if rng.random() < 0.4:
+                if rng.random() < p_edge:
                     G.add_edge(i, j, distance=float(rng.integers(50, 250)),
                                link_quality=float(rng.random()),
                                packet_error_rate=float(rng.random()) * 0.3)
         src, dst = 0, n - 1
-        if not list(G.neighbors(src)) or not nx.has_path(G, src, dst):
+        if not list(G.neighbors(src)) or dst not in G:
             continue
+        try:
+            reach = set(nx.single_source_shortest_path_length(G, dst))
+        except nx.NodeNotFound:
+            continue
+        if any(nb not in reach for nb in G.neighbors(src)) or src not in reach:
+            n_partitioned += 1
         ref = spbp_next_hop(G, src, dst)
         got = spbp_kinf_next_hop(G, src, dst)
         checked += 1
         if ref != got:
             raise AssertionError(
-                f"spbp_khop(k=inf) diverged from spbp_next_hop: {got} vs {ref}")
-    if checked == 0:
-        raise AssertionError("assert_kinf_matches_global checked 0 cases")
+                f"spbp_khop(k=inf) diverged from spbp_next_hop: {got} vs {ref} "
+                f"-- the locality experiment would then be measuring this "
+                f"reimplementation, not the information horizon")
+    if checked < 50:
+        raise AssertionError(
+            f"assert_kinf_matches_global checked only {checked} cases")
+    if n_partitioned < 20:
+        raise AssertionError(
+            f"control exercised only {n_partitioned} partitioned cases -- too "
+            f"few to trust; it would pass without testing the branch that broke")
+    assert_kinf_matches_global.n_partitioned = n_partitioned
 
 
 assert_kinf_matches_global()

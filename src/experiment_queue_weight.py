@@ -367,9 +367,22 @@ def main():
     else:
         print("  ** DA-GPSR's reference weight IS its optimum on this grid, now")
         print("     bracketed on both sides. The gap is not a weight choice.")
-    if best_q != 1.0:
-        print(f"  ** SP-BP's reference is NOT its optimum either (best q={best_q:g}).")
+    # MAGNITUDE MATTERS. The first version of this fired on best_q != 1.0 with
+    # no size test and printed "not its optimum" on a +0.0010 difference
+    # against a +0.0359 gap, with the curve flat at 0.4138/0.4138/0.4139 for
+    # q = 1.5/3/10. That is SATURATION, not an optimum, and it would have put
+    # "the panel comparison is partly a comparison of tuning" into the paper
+    # on 2.8% of the gap. Require a tenth of the gap before saying it.
+    sp_best = means[f'spbp_q{best_q:g}']
+    sp_gain = sp_best - sp_ref
+    if best_q != 1.0 and sp_gain > 0.1 * abs(gap):
+        print(f"  ** SP-BP's reference is NOT its optimum either (best q={best_q:g}, "
+              f"{sp_gain:+.4f} = {100*sp_gain/abs(gap):.0f}% of the gap).")
         print("     The panel comparison is partly a comparison of tuning; say so.")
+    elif best_q != 1.0:
+        print(f"  -- SP-BP's curve SATURATES above q~1.5 (best q={best_q:g} is only "
+              f"{sp_gain:+.4f}, {100*sp_gain/abs(gap):.0f}% of the gap).")
+        print("     Report as saturation, NOT as evidence the comparison is tuning.")
 
     if best_da > sp_ref + 0.002:
         print()

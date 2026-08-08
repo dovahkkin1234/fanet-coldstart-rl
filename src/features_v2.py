@@ -51,10 +51,34 @@ NODE_FEATURES = [
 EDGE_FEATURES = [
     'distance',
     'link_quality',
-    'packet_error_rate',
     'estimated_link_lifetime',
     'relative_velocity',
 ]
+# REMOVED FEATURE -- 'packet_error_rate' sat between 'link_quality' and
+# 'estimated_link_lifetime'. It is very nearly 1 - link_quality.
+# Measured on 526,038 stored edge rows from a full regeneration:
+#     lq       mean=0.4073  std=0.2942
+#     per      mean=0.5836  std=0.2974
+#     lq + per mean=0.9909  std=0.0181     <- COMPLEMENTS
+#     |r| = 0.9982   |rho| = 0.9987
+# Every other edge pair is clean (next highest is distance <-> link_quality at
+# |r|=0.5362), so this is a duplication, not a property of the block.
+#
+# The cause is shared construction in simulator_v2._measured_link: both are
+# built from the same sinr_clean, p_clear and p_coll --
+#     lq  = clip(sinr_db/30,0,1) * p_clear * (1 - p_coll)
+#     per = 1 - (1 - per_phy) * (1 - p_interf) * (1 - p_coll)
+# with per_phy monotone decreasing in the same sinr, and (1 - p_coll) shared
+# outright.
+#
+# link_quality is the one kept because it is the signal every teacher scores
+# on -- da_gpsr, backpressure and spbp all read link_quality -- so the model's
+# view stays aligned with what produced its labels. packet_error_rate remains
+# on the graph and in the simulator; only the model's view of it is removed.
+#
+# Found by G3.5 check 8 on a real regeneration, not by inspection. This is the
+# third instance of the same defect class after snr <-> distance and
+# ttl_left <-> hops_so_far, and the first one no human predicted.
 # REMOVED FEATURE -- 'snr' sat between 'packet_error_rate' and
 # 'estimated_link_lifetime'. The graph attribute it read is `sinr_clean`,
 # returned by simulator_v2._measured_link from
@@ -100,7 +124,27 @@ CANDIDATE_FEATURES = [
     'progress',            # normalised geographic progress toward destination
     'cand_hop_distance',   # candidate's BFS hop distance to destination
     'is_destination',      # candidate IS the destination
+    'cand_reachable',      # candidate lies in the destination's component
 ]
+# ADDED 'cand_reachable'. Be honest about what it does and does not do.
+#
+# It adds NO INFORMATION the model lacked. SP-BP excludes unreachable
+# candidates, so the label never points at one and the model could learn
+# "never pick these" from labels alone; and cand_hop_distance already
+# saturates at 1.0 for unreachable nodes, which with mean hops 1.73-3.15
+# against HOP_CAP=10 makes it a de facto unreachability flag already.
+# G3.5 check 8 will therefore flag this pair as redundant, and it will be
+# RIGHT to -- see ALLOWED_REDUNDANT_PAIRS in preflight_dataset_v2_check.
+#
+# The argument for the column is ABLATABILITY. Folded inside a distance
+# column, reachability cannot be masked independently; as its own column it
+# can, and "does the model need global connectivity knowledge?" becomes a
+# measurable result instead of an assumption.
+#
+# Note also that reachability-from-destination is a GLOBAL property -- a drone
+# cannot compute it from a 2-hop neighbourhood. This column moves AWAY from
+# decentralisation, which is exactly why it must be separately maskable now
+# that LOCAL_HORIZON = 2 is the declared scoping choice.
 
 # Physical constants used for normalisation (mirrors simulator_v2 / models.py).
 MAX_QUEUE_REF = 50.0
@@ -135,7 +179,7 @@ LOCAL_HORIZON = 2
 # Bumped whenever the four feature lists change. Persisted in manifest.json and
 # asserted by both checkers, so a checker can never resolve feature names
 # against a module that disagrees with the dataset it is reading.
-FEATURE_SCHEMA_VERSION = 2
+FEATURE_SCHEMA_VERSION = 4
 
 
 def _assert_schema_sane():
@@ -227,7 +271,6 @@ def extract_frame(G, nc):
         ef[k] = (
             e.get('distance', 0.0) / nc['comm_range'],
             e.get('link_quality', 0.0),
-            e.get('packet_error_rate', 0.0),
             min(e.get('estimated_link_lifetime', 0.0), nc['lifetime_ref']) / nc['lifetime_ref'],
             min(e.get('relative_velocity', 0.0) / max(2.0 * smax, 1e-6), 1.0),
         )
@@ -366,5 +409,6 @@ def extract_decision(G, pkt, candidates, nc, h_map, n_inflight,
             np.clip((dist_cd - dist_ud) / max(dist_cd, 1.0), -1.0, 1.0),
             min(h_map.get(u, nc['hop_cap']) / nc['hop_cap'], 1.0),
             1.0 if u == dst else 0.0,
+            1.0 if u in h_map else 0.0,       # cand_reachable (see note above)
         )
     return qf, cf

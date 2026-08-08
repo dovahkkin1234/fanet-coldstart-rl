@@ -62,6 +62,32 @@ PEARSON_MAX = 0.98      # linear duplication
 SPEARMAN_MAX = 0.995    # monotone (possibly nonlinear) duplication
 REDUNDANCY_SAMPLE = 200000
 
+# NAMED EXEMPTIONS. A pair listed here is reported as INFO instead of failing
+# the gate. Every entry needs a written reason, and the reason has to be that
+# the duplication is DELIBERATE -- not that it is inconvenient. Loosening
+# PEARSON_MAX/SPEARMAN_MAX instead would defeat the check that was added to
+# catch snr <-> distance and ttl_left <-> hops_so_far in the first place.
+# EMPTY ON PURPOSE. An entry was added here for
+# cand_hop_distance <-> cand_reachable on the PREDICTION that they would be
+# near-collinear, since cand_hop_distance saturates at 1.0 for unreachable
+# candidates. Measured on the real dataset, they are not:
+#     cand_hop_distance <-> cand_reachable   |r|=0.8391  |rho|=0.2597
+# -- both far below threshold, because 95.8% of candidates are reachable and
+# the rank correlation is dominated by hop variation among those rather than
+# by the binary split. The exemption never fired, and a standing exemption for
+# a pair that is not redundant is worse than none: if they ever did become
+# collinear, this gate would stay silent about it. So it is removed.
+#
+# The machinery stays for a future GENUINE case. Nothing gets exempted on a
+# prediction -- only on a measurement plus a written reason.
+ALLOWED_REDUNDANT_PAIRS = {}
+
+
+def _exempt(block, a, b):
+    """Exemptions are unordered: (block, a, b) matches (block, b, a)."""
+    return (ALLOWED_REDUNDANT_PAIRS.get((block, a, b))
+            or ALLOWED_REDUNDANT_PAIRS.get((block, b, a)))
+
 
 def _spearman_matrix(x):
     """Spearman rho for every column pair = Pearson r on the RANKS.
@@ -121,6 +147,12 @@ def redundancy_report(block_name, arr, names):
         for j in range(i + 1, x.shape[1]):
             p, s = abs(pear[i, j]), abs(spear[i, j])
             if p > PEARSON_MAX or s > SPEARMAN_MAX:
+                why = _exempt(block_name, names[i], names[j])
+                if why:
+                    lines.append(f'    [exempt] {block_name}: {names[i]} <-> '
+                                 f'{names[j]}  |r|={p:.4f} |rho|={s:.4f}')
+                    lines.append(f'             {why}')
+                    continue
                 offenders.append((block_name, names[i], names[j], p, s))
                 kind = ('linear' if p > PEARSON_MAX else
                         'monotone (nonlinear -- Pearson alone would MISS this)')

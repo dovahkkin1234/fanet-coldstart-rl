@@ -234,8 +234,61 @@ def assert_controls():
 assert_controls()
 
 
+def spbp_ab_geohop(G, current, destination, v_bias=SPBP_V_BIAS):
+    """Full SP-BP with the hop term replaced by GEOGRAPHIC progress.
+
+    This is the last standing hypothesis for the SP-BP / DA-GPSR residual.
+    The corrected ablation shows spbp_ab_candqueue = 0.4128 against
+    da_gpsr = 0.3770 -- both use candidate-only queue avoidance, and the
+    queue-weight sweep showed both sit at their own optimal weight. So the
+    residual is not in the queue term. The only structural difference left is
+    the progress metric: integer BFS hops versus normalised geographic
+    progress.
+
+    SCALE IS CONVERTED, NOT DROPPED. Geographic progress is divided by
+    comm_range so it is expressed in hop-equivalent units and enters the score
+    at the same magnitude as (h_cur - h_n). Without that, this variant would
+    confound METRIC with SCALE -- the exact confound the queue-weight sweep
+    had to be re-gridded to avoid.
+
+    PRE-REGISTERED: near 0.377 means the progress metric explains the gap and
+    Finding 4 is closed. Near 0.4128 means it does not, and the residual is
+    somewhere not yet proposed -- report that as open rather than inventing a
+    third hypothesis after the fact.
+    """
+    neighbors = list(G.neighbors(current))
+    if not neighbors:
+        return None
+    if destination in neighbors:
+        return destination
+    try:
+        h = nx.single_source_shortest_path_length(G, destination)
+    except nx.NodeNotFound:
+        return None
+    if current not in h:
+        return None
+    comm_range = float(G.graph.get('comm_range') or 250.0)
+    dpos = _pos(G, destination)
+    d_cur = float(np.linalg.norm(dpos - _pos(G, current)))
+    q_cur = float(G.nodes[current].get('queue_len', 0.0))
+
+    best, best_score = None, -float('inf')
+    for n in neighbors:
+        if n not in h:
+            continue                      # same exclusion as panel SP-BP
+        q_n = float(G.nodes[n].get('queue_len', 0.0))
+        lq = float(G.edges[current, n].get('link_quality', 0.0))
+        d_n = float(np.linalg.norm(dpos - _pos(G, n)))
+        hop_geo = (d_cur - d_n) / max(comm_range, 1e-6)
+        score = lq * ((q_cur - q_n) + v_bias * hop_geo)
+        if score > best_score:
+            best_score, best = score, n
+    return best if best is not None else _progress_fallback(G, current, destination)
+
+
 ABLATIONS = {
     'spbp_ab_full':      spbp_ab_full,
+    'spbp_ab_geohop':    spbp_ab_geohop,
     'spbp_ab_noqueue':   spbp_ab_noqueue,
     'spbp_ab_candqueue': spbp_ab_candqueue,
     'spbp_ab_additive':  spbp_ab_additive,
@@ -405,7 +458,8 @@ def part_c(seeds, rates, max_workers, quick=False):
     print("\n  cost of removing each structural feature (vs full SP-BP):")
     for t, label in [('spbp_ab_noqueue', 'queue term entirely'),
                      ('spbp_ab_candqueue', 'queue DIFFERENTIAL -> candidate-only'),
-                     ('spbp_ab_additive', 'lq MULTIPLICATIVE -> additive')]:
+                     ('spbp_ab_additive', 'lq MULTIPLICATIVE -> additive'),
+                     ('spbp_ab_geohop', 'BFS hops -> geographic progress')]:
         print(f"    {label:<42} {full - means.get(t, np.nan):+.4f} PDR")
     print()
     print("  The largest drop identifies the mechanism actually responsible for")

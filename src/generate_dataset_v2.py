@@ -442,6 +442,31 @@ def _split_sizes(all_dec, heldout='medium_slow'):
         elif 143 <= sd <= 150:
             te += 1
     tot = max(tr + va + te + ge, 1)
+
+    # FAIL FAST ON ORPHANED DECISIONS.
+    # The split is assigned by HARDCODED seed ranges (train 101-135, val
+    # 136-142, test 143-150) while --seeds is a free CLI argument. Seeds
+    # outside 101-150 match no branch and are counted into no split, silently.
+    # Observed with --seeds 1 2 3: 22,416 of 34,400 decisions (65.2%) orphaned.
+    #
+    # The independent audit does catch this ("Split viable, all decisions
+    # assigned"), and G3.5 does not -- its check 5 and check 7 both pass. So
+    # this was never a silent corruption path provided the audit is run. But
+    # discovering it after a full generation plus two gates costs a great deal
+    # more than discovering it here.
+    assigned = tr + va + te + ge
+    if assigned != len(all_dec):
+        raise AssertionError(
+            f"{len(all_dec) - assigned} of {len(all_dec)} decisions "
+            f"({100 * (len(all_dec) - assigned) / max(len(all_dec), 1):.1f}%) "
+            f"belong to NO split.\n"
+            f"  The split is assigned by seed range: train 101-135, "
+            f"val 136-142, test 143-150, and any seed for the held-out "
+            f"scenario {heldout!r}.\n"
+            f"  Seeds seen: {sorted({int(d['seed']) for d in all_dec})}\n"
+            f"  Either pass --seeds within 101-150, or update the ranges in "
+            f"_split_sizes to match.")
+
     return {'train': tr, 'val': va, 'test': te, 'generalisation': ge,
             'generalisation_share': round(ge / tot, 4)}
 
