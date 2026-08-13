@@ -60,15 +60,35 @@ class ModelActorSimulator(FANETSimulatorV2):
         self.model = model
         self.device = device
         self.nc = F.norm_constants(config)
-        self._enc_cache = {}      # id(G) -> (h, node_feat) for THIS frame
+        # CACHE KEYED ON FRAME INDEX, NEVER id(G).
+        # The first version used id(G) as the key. That is a MEMORY ADDRESS:
+        # simulator_v2 rebuilds the graph every frame (line 704) and drops the
+        # old one, and CPython recycles a freed object's address immediately --
+        # measured 100% reuse over 200 sequential nx.Graph allocations. So a
+        # NEW frame could land on the freed address, hit the one-entry cache,
+        # and be routed using the PREVIOUS frame's encoding.
+        # Effect is rare and heap-dependent, which is exactly the signature
+        # seen in check 6: one packet, in one episode out of 48, differing
+        # between two runs of identical weights.
+        self._frame_no = -1
+        self._enc_cache = {}
         self._hop_cache = {}
         self.n_decisions = 0
         self.n_no_candidate = 0
 
+    def _build_graph(self):
+        """Bump the frame counter in lockstep with graph construction.
+
+        Incrementing here rather than in the step loop means the counter cannot
+        drift out of step with the graph it labels, whatever the caller does.
+        """
+        self._frame_no += 1
+        return super()._build_graph()
+
     def _encode(self, G):
         """Encoder runs ONCE PER FRAME. The graph object is rebuilt each frame,
         so its identity is a safe cache key within a frame."""
-        key = id(G)
+        key = self._frame_no
         if key in self._enc_cache:
             return self._enc_cache[key]
         _ids, nf, ei, ef = F.extract_frame(G, self.nc)
@@ -92,7 +112,7 @@ class ModelActorSimulator(FANETSimulatorV2):
             self.n_decisions += 1
             return cands[0]
 
-        key = (id(G), pkt.dst)
+        key = (self._frame_no, pkt.dst)
         if key not in self._hop_cache:
             self._hop_cache = {key: F.hop_distances_to(G, pkt.dst)}
         h_map = self._hop_cache[key]
