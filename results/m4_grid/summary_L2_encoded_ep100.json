@@ -1,0 +1,35 @@
+{
+  "tag": "L2_encoded_ep100",
+  "hp": {
+    "d": 128,
+    "layers": 2,
+    "heads": 4,
+    "dropout": 0.1,
+    "attn_dropout": 0.0,
+    "lr": 0.0003,
+    "weight_decay": 0.0001,
+    "frames_per_batch": 48,
+    "max_epochs": 100,
+    "patience": 6,
+    "grad_clip": 1.0
+  },
+  "n_seeds": 10,
+  "mixer_a": "attention",
+  "mixer_b": "mlp",
+  "trivial_raw": 0.7114134990632683,
+  "trivial_contested": 0.5945956626201315,
+  "mean_a": 0.870155319267383,
+  "mean_b": 0.8905221844903413,
+  "paired": {
+    "n": 10,
+    "mean_diff": -0.02036686522295831,
+    "sd_diff": 0.00637385642889377,
+    "t": -10.104664832150828,
+    "p": 3.2809637636004176e-06,
+    "ci95": [
+      -0.024926447437032987,
+      -0.015807283008883632
+    ],
+    "cohens_d": -3.1953755862199626
+  }
+}

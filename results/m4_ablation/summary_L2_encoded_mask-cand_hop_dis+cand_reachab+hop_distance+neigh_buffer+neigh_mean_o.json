@@ -1,0 +1,35 @@
+{
+  "tag": "L2_encoded_mask-cand_hop_dis+cand_reachab+hop_distance+neigh_buffer+neigh_mean_o",
+  "hp": {
+    "d": 128,
+    "layers": 2,
+    "heads": 4,
+    "dropout": 0.1,
+    "attn_dropout": 0.0,
+    "lr": 0.0003,
+    "weight_decay": 0.0001,
+    "frames_per_batch": 48,
+    "max_epochs": 50,
+    "patience": 6,
+    "grad_clip": 1.0
+  },
+  "n_seeds": 30,
+  "mixer_a": "attention",
+  "mixer_b": "mlp",
+  "trivial_raw": 0.7114134990632683,
+  "trivial_contested": 0.5945956626201315,
+  "mean_a": 0.7352827107572973,
+  "mean_b": 0.710137504871124,
+  "paired": {
+    "n": 30,
+    "mean_diff": 0.02514520588617342,
+    "sd_diff": 0.008454969775448734,
+    "t": 16.289350338024008,
+    "p": 3.9300282455913287e-16,
+    "ci95": [
+      0.021988068285916606,
+      0.028302343486430234
+    ],
+    "cohens_d": 2.9740148757467173
+  }
+}
