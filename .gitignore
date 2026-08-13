@@ -27,3 +27,5 @@ data/
 results/m4_smoke/
 results/m4_pilot/
 results/m4_rollout_det/
+
+results/m4_rollout_det2/
