@@ -19,3 +19,11 @@ Thumbs.db
 logs/*.log
 
 data/
+
+# Checkpoints: exactly reproducible from seed + config (determinism verified)
+*.pt
+
+# Scratch and superseded-code-version runs
+results/m4_smoke/
+results/m4_pilot/
+results/m4_rollout_det/
