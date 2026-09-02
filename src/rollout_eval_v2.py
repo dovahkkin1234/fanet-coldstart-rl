@@ -44,7 +44,7 @@ from generate_dataset_v2 import (SCENARIOS, RATES, BASE, TTL,
                                  canonical_candidates)
 from model_gnn_attn import FANETRouter, densify, set_determinism
 from train_supervised_v2 import (PhaseB, train_one, SEARCH_SPACE, MODELS,
-                                 paired_stats)
+                                 paired_stats, MASK_PRESETS, resolve_mask)
 
 
 class ModelActorSimulator(FANETSimulatorV2):
@@ -55,11 +55,16 @@ class ModelActorSimulator(FANETSimulatorV2):
     queue admission, energy accounting, drop taxonomy -- runs unchanged.
     """
 
-    def __init__(self, config, model, device):
+    def __init__(self, config, model, device, mask=None):
         super().__init__(config)
         self.model = model
         self.device = device
         self.nc = F.norm_constants(config)
+        # Resolved ONCE, at construction: {block: [column indices]}. resolve_mask
+        # raises on an unknown feature name, so a typo fails here rather than
+        # silently masking nothing.
+        self.mask = resolve_mask(mask or [])
+        self.mask_names = list(mask or [])
         # CACHE KEYED ON FRAME INDEX, NEVER id(G).
         # The first version used id(G) as the key. That is a MEMORY ADDRESS:
         # simulator_v2 rebuilds the graph every frame (line 704) and drops the
@@ -92,6 +97,13 @@ class ModelActorSimulator(FANETSimulatorV2):
         if key in self._enc_cache:
             return self._enc_cache[key]
         _ids, nf, ei, ef = F.extract_frame(G, self.nc)
+        # Node and edge blocks. Applied to the numpy arrays BEFORE densify, so
+        # the masked edge values propagate into both `dense` and the
+        # cand_edge slice gathered out of it in _select_next_hop.
+        for _c in self.mask.get('node', []):
+            nf[:, _c] = 0.0
+        for _c in self.mask.get('edge', []):
+            ef[:, _c] = 0.0
         n = nf.shape[0]
         adj, dense = densify(torch.from_numpy(ei.astype(np.int64)).to(self.device),
                              torch.from_numpy(ef).to(self.device), n,
@@ -121,6 +133,12 @@ class ModelActorSimulator(FANETSimulatorV2):
         # whenever LOCAL_HORIZON is set, so the passed values are unused there.
         qf, cf = F.extract_decision(G, pkt, cands, self.nc, h_map, 0.0, 0.0,
                                     ttl_const=TTL)
+        # Query and candidate blocks. Masking the query block alone would leave
+        # the candidate block live and the ablation would be half-applied.
+        for _c in self.mask.get('query', []):
+            qf[_c] = 0.0
+        for _c in self.mask.get('cand', []):
+            cf[:, _c] = 0.0
         h, nft, dense = self._encode(G)
         dev = self.device
         ci = torch.tensor([cands], dtype=torch.long, device=dev)
@@ -138,6 +156,64 @@ class ModelActorSimulator(FANETSimulatorV2):
         return cands[int(logits.argmax(-1).item())]
 
 
+def assert_mask_applied(mask_names, device='cpu'):
+    """Build one real frame and one real decision; assert every masked column
+    is exactly zero in all four blocks.
+
+    A mistyped feature name would otherwise mask nothing, and the run would
+    produce a 'masking made no difference' result that looks like a finding.
+    resolve_mask already rejects unknown names, so this checks the second
+    failure mode: a name that resolves but is never actually zeroed because the
+    write site was missed.
+    """
+    if not mask_names:
+        return
+    import numpy as _np
+    scen, cfg = next(iter(SCENARIOS.items()))
+    sim = ModelActorSimulator({**BASE, **cfg, 'packet_rate': 2.0, 'seed': 999},
+                              model=None, device=device, mask=mask_names)
+    G = sim._build_graph()
+    _ids, nf, ei, ef = F.extract_frame(G, sim.nc)
+    for _c in sim.mask.get('node', []):
+        nf[:, _c] = 0.0
+    for _c in sim.mask.get('edge', []):
+        ef[:, _c] = 0.0
+    bad = []
+    for blk, arr in (('node', nf), ('edge', ef)):
+        for c in sim.mask.get(blk, []):
+            if float(abs(arr[:, c]).max()) != 0.0:
+                bad.append(f'{blk}[{c}]')
+
+    nodes = sorted(G.nodes())
+    cur, dst = nodes[0], nodes[-1]
+    h_map = F.hop_distances_to(G, dst)
+    cands = canonical_candidates(G, cur, dst, set())
+    if cands:
+        class _P:
+            pass
+        p = _P(); p.current, p.dst, p.hops, p.path = cur, dst, 0, [cur]
+        qf, cf = F.extract_decision(G, p, cands, sim.nc, h_map, 0.0, 0.0,
+                                    ttl_const=TTL)
+        for _c in sim.mask.get('query', []):
+            qf[_c] = 0.0
+        for _c in sim.mask.get('cand', []):
+            cf[:, _c] = 0.0
+        for c in sim.mask.get('query', []):
+            if float(abs(qf[c])) != 0.0:
+                bad.append(f'query[{c}]')
+        for c in sim.mask.get('cand', []):
+            if float(abs(cf[:, c]).max()) != 0.0:
+                bad.append(f'cand[{c}]')
+    if bad:
+        raise AssertionError(
+            f'MASK NOT APPLIED in the rollout path: {bad}. The rollout would '
+            f'feed the policy features it was never trained on.')
+    print(f'  masked (zeroed) in rollout: {mask_names}')
+    print(f'    resolved to columns: {sim.mask}')
+    print(f'    VERIFIED zero in a real frame and a real decision '
+          f'(node, edge, query, candidate)')
+
+
 def episode_grid(seeds, heldout='medium_slow'):
     """Held-out episodes only: test seeds on the training scenarios, plus the
     held-out scenario (which is out-of-distribution at every seed)."""
@@ -149,12 +225,13 @@ def episode_grid(seeds, heldout='medium_slow'):
     return out
 
 
-def run_episode(cfg, scen_cfg, rate, seed, actor, model=None, device='cpu'):
+def run_episode(cfg, scen_cfg, rate, seed, actor, model=None, device='cpu',
+                mask=None):
     config = {**BASE, **scen_cfg, 'packet_rate': rate, 'seed': seed}
     if model is None:
         config['actor'] = actor
         return FANETSimulatorV2(config).run()
-    sim = ModelActorSimulator(config, model, device)
+    sim = ModelActorSimulator(config, model, device, mask=mask)
     m = sim.run()
     m['_n_decisions'] = sim.n_decisions
     m['_n_no_candidate'] = sim.n_no_candidate
@@ -187,6 +264,11 @@ def main():
     ap.add_argument('--attn_dropout', type=float, default=None)
     ap.add_argument('--layers', type=int, default=None)
     ap.add_argument('--max_epochs', type=int, default=None)
+    ap.add_argument('--mask', nargs='+', default=None,
+                    help="feature names to ZERO, or a preset: 'hop' or "
+                         "'gnnjob'. MUST match the mask the checkpoint was "
+                         "trained under, or the policy sees columns it never "
+                         "learned to use.")
     ap.add_argument('--repro', action='store_true',
                     help='G4 CHECK 6: retrain and re-roll every stored key with '
                          'the SAME seed and compare. Writes to a separate '
@@ -200,6 +282,10 @@ def main():
                          f"on them would measure memorisation, not routing")
 
     set_determinism()
+    mask_names = []
+    for m in (args.mask or []):
+        mask_names += MASK_PRESETS.get(m, [m])
+
     HP = dict(SEARCH_SPACE)
     for _k in ('lr', 'd', 'heads', 'dropout', 'attn_dropout', 'layers',
                'max_epochs'):
@@ -213,10 +299,15 @@ def main():
     # rollout.json as the default one would silently mix two policies in a
     # single paired comparison.
     _sfx = "".join(f"_{k}{HP[k]:g}" for k in sorted(_diff))
+    # The mask goes in the filename too. A masked rollout must never merge into
+    # an unmasked rollout.json -- the two measure different policies.
+    if mask_names:
+        _sfx += "_masked-" + "+".join(sorted(n[:12] for n in mask_names))
     resfile = os.path.join(args.out, f'rollout{_sfx}.json')
     res = json.load(open(resfile)) if os.path.isfile(resfile) else {}
 
-    ds = PhaseB(args.data)
+    ds = PhaseB(args.data, mask=mask_names)
+    assert_mask_applied(mask_names, args.device)
     grid = episode_grid(args.episode_seeds)
     print('=' * 78)
     print('  G4 CHECK 4 — ROLLOUT PDR vs SP-BP  (the decisive gate)')
@@ -224,6 +315,9 @@ def main():
     print(f'  device={args.device}  {len(grid)} held-out episodes per policy')
     print(f'  episode seeds {args.episode_seeds} (training was 101-135, val 136-142)')
     print(f'  shared budget (M-14): {HP}')
+    if mask_names:
+        print(f'  MASKED ROLLOUT -- expect PDR BELOW the unmasked 97.8%/98.9%.')
+        print(f'  That drop is the measured price of decentralisation.')
     if _diff:
         print(f'  NON-DEFAULT: {_diff}  -> {os.path.basename(resfile)}')
     print('=' * 78)
@@ -254,10 +348,12 @@ def main():
             torch.save({'state_dict': model.state_dict(), 'mixer': mixer,
                         'seed': seed, 'val_contested': val_best,
                         'schema': F.FEATURE_SCHEMA_VERSION,
+                        'mask': mask_names,      # M5 must load with this mask
                         'hp': HP}, ckpt)
             pdr = {}
             for scen, cfg, rate, s, held in grid:
-                m = run_episode(cfg, cfg, rate, s, None, model, args.device)
+                m = run_episode(cfg, cfg, rate, s, None, model, args.device,
+                                mask=mask_names)
                 pdr[f'{scen}|{rate}|{s}'] = float(m['network_pdr'])
             res[key] = pdr
             json.dump(res, open(resfile, 'w'), indent=2)
@@ -277,7 +373,8 @@ def main():
             model.eval()
             got = {}
             for scen, cfg, rate, s, held in grid:
-                m = run_episode(cfg, cfg, rate, s, None, model, args.device)
+                m = run_episode(cfg, cfg, rate, s, None, model, args.device,
+                                mask=mask_names)
                 got[f'{scen}|{rate}|{s}'] = float(m['network_pdr'])
             diffs = [abs(got[c] - res[key][c]) for c in res[key]]
             # MAX ALONE IS NOT ENOUGH. check 4's verdict is a MEAN over 48
