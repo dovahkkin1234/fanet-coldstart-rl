@@ -77,19 +77,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from simulator_v2 import FANETSimulatorV2
 from teacher_panel import scenario_class, load_bucket
 
-SCENARIOS = {
-    'very_dense':  dict(num_drones=45, area_x=700,  area_y=700,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'dense_slow':  dict(num_drones=30, area_x=800,  area_y=800,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'medium_slow': dict(num_drones=30, area_x=1300, area_y=1300, comm_range=280,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'sparse_fast': dict(num_drones=20, area_x=1500, area_y=1500, comm_range=300,
-                        speed_min=35, speed_max=50, pause_max=2.0),
-}
-RATES = [0.5, 2.0, 4.0]
-BASE = dict(z_min=50, z_max=150, duration=40.0, drain_time=10.0,
-            interference_on=True)
+# Config now lives in config_v2.py -- see the note there on why eight
+# independent copies of this block were a latent hazard.
+from config_v2 import SCENARIOS, RATES, BASE, get_suite, provenance  # noqa: F401
 
 # Causes routing can plausibly do something about. link_error is deliberately
 # EXCLUDED: a packet lost to a burst of hidden-terminal interference on an
@@ -107,20 +97,43 @@ class HeadroomSimulator(FANETSimulatorV2):
     """
 
     def __init__(self, config):
+        # Assigned BEFORE super().__init__ so _build_graph is safe to call from
+        # anywhere in the base constructor, now or after a future edit.
+        self._frame_no = 0
         super().__init__(config)
         self.routable = {}          # pid -> bool
-        self._reach_cache = {}      # (frame_marker, src) -> reachable set
+        self._reach_cache = {}      # (frame_no, src) -> reachable set
+        self._cache_born = {}       # same key -> frame it was computed in
+        # 'fixed'  : key on the frame counter (correct)
+        # 'legacy' : key on id(G), reproducing the pre-v10 defect verbatim so
+        #            archived results can be attributed rather than guessed at
+        self.cache_mode = str(config.get('cache_mode', 'fixed'))
+        assert self.cache_mode in ('fixed', 'legacy'), self.cache_mode
+        self.cache_stats = dict(lookups=0, stale_hits=0, distinct_ids=set())
+
+    def _build_graph(self):
+        """Increment the frame counter HERE, not in the step loop, so it cannot
+        drift out of step with the graph it labels whatever the caller does."""
+        self._frame_no += 1
+        return super()._build_graph()
 
     def _on_packet_generated(self, G, pkt):
-        key = (id(G), pkt.src)
+        self.cache_stats['lookups'] += 1
+        self.cache_stats['distinct_ids'].add(id(G))
+        key = ((id(G), pkt.src) if self.cache_mode == 'legacy'
+               else (self._frame_no, pkt.src))
+        if key in self._reach_cache and self._cache_born.get(key) != self._frame_no:
+            # A hit on an entry computed under a DIFFERENT topology.
+            self.cache_stats['stale_hits'] += 1
         if key not in self._reach_cache:
             if len(self._reach_cache) > 4000:
-                self._reach_cache.clear()
+                self._reach_cache.clear(); self._cache_born.clear()
             try:
                 self._reach_cache[key] = set(
                     nx.single_source_shortest_path_length(G, pkt.src))
             except nx.NodeNotFound:
                 self._reach_cache[key] = set()
+            self._cache_born[key] = self._frame_no
         self.routable[pkt.pid] = pkt.dst in self._reach_cache[key]
 
     def run(self):
@@ -139,12 +152,26 @@ class HeadroomSimulator(FANETSimulatorV2):
         m['routable_frac'] = routable_gen / max(m['n_generated'], 1)
         m['pdr_routable'] = routable_del / max(routable_gen, 1)
         m['drops_routable'] = dict(drops_routable)
+        m['cache_mode'] = self.cache_mode
+        m['cache_lookups'] = self.cache_stats['lookups']
+        m['cache_stale_hits'] = self.cache_stats['stale_hits']
+        m['cache_distinct_ids'] = len(self.cache_stats['distinct_ids'])
+        m['n_frames'] = self._frame_no
+        # REGRESSION TRIPWIRE, not a live check. Under the fixed key this is a
+        # tautology (key[0] IS the frame number) and can never fire on today's
+        # code. It exists to break loudly if a future edit reverts the key.
+        # The real negative control lives in verify_headroom_fix_v10.py.
+        if self.cache_mode == 'fixed':
+            assert self.cache_stats['stale_hits'] == 0, (
+                f"fixed cache produced {self.cache_stats['stale_hits']} "
+                f"cross-frame hits -- the key is no longer frame-scoped")
         return m
 
 
 def _run(job):
-    sc, cfg, rate, seed, actor = job
-    full = {**BASE, **cfg, 'packet_rate': rate, 'seed': seed, 'actor': actor}
+    sc, cfg, rate, seed, actor, cache_mode, collision_model = job
+    full = {**BASE, **cfg, 'packet_rate': rate, 'seed': seed, 'actor': actor,
+            'cache_mode': cache_mode, 'collision_model': collision_model}
     m = HeadroomSimulator(full).run()
     return {
         'scenario': sc, 'rate': rate, 'seed': seed,
@@ -152,6 +179,10 @@ def _run(job):
         'pdr_raw': m['pdr_predrain'], 'pdr_routable': m['pdr_routable'],
         'routable_frac': m['routable_frac'], 'n_routable': m['n_routable'],
         'drops_routable': m['drops_routable'],
+        'cache_mode': cache_mode, 'collision_model': collision_model,
+        'cache_lookups': m['cache_lookups'],
+        'cache_stale_hits': m['cache_stale_hits'],
+        'cache_distinct_ids': m['cache_distinct_ids'], 'n_frames': m['n_frames'],
     }
 
 
@@ -160,13 +191,19 @@ def main():
     ap.add_argument('--seeds', type=int, nargs='+', default=list(range(1, 31)))
     ap.add_argument('--rates', type=float, nargs='+', default=RATES)
     ap.add_argument('--actor', default='spbp', help='best classical teacher')
+    ap.add_argument('--cache_mode', default='fixed', choices=['fixed', 'legacy'],
+                    help="'legacy' reproduces the pre-v10 id(G) defect on purpose")
+    ap.add_argument('--collision_model', default='unsaturated',
+                    choices=['unsaturated', 'saturated'],
+                    help="'saturated' reproduces the pre-M-4-flip condition "
+                         "under which results/headroom.json was produced")
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--quick', action='store_true')
     ap.add_argument('--out', default='results/headroom.json')
     args = ap.parse_args()
 
     scen = {'medium_slow': SCENARIOS['medium_slow']} if args.quick else SCENARIOS
-    jobs = [(sc, cfg, r, sd, args.actor)
+    jobs = [(sc, cfg, r, sd, args.actor, args.cache_mode, args.collision_model)
             for sc, cfg in scen.items() for r in args.rates for sd in args.seeds]
 
     print("\n" + "=" * 78)
@@ -274,10 +311,20 @@ def main():
 
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     with open(args.out, 'w') as f:
+        stale_total = sum(r.get('cache_stale_hits', 0) for r in results)
         json.dump({'rows': rows, 'headroom_rows': headroom_rows,
                    'overall_headroom': overall, 'actor': args.actor,
                    'routing_addressable': list(ROUTING_ADDRESSABLE),
-                   'seeds': list(args.seeds), 'rates': list(args.rates)},
+                   'seeds': list(args.seeds), 'rates': list(args.rates),
+                   # provenance: results/headroom.json carried none of this,
+                   # which is why dating it required git archaeology
+                   'cache_mode': args.cache_mode,
+                   'collision_model': args.collision_model,
+                   'cache_stale_hits_total': int(stale_total),
+                   'schema': 'headroom_v10',
+                   # per-seed rows, so any future comparison can be PAIRED;
+                   # the archive aggregated to 12 cells before writing
+                   'rows_per_seed': results},
                   f, indent=2)
     print(f"  saved to {args.out}\n")
     return 0

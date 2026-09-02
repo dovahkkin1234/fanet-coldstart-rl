@@ -1,0 +1,50 @@
+[
+ {
+  "scenario": "very_dense",
+  "rate": 2.0,
+  "seed": 1,
+  "lookups": 660,
+  "stale_hits": 143,
+  "frames": 60,
+  "distinct_ids": 47,
+  "disagreements": 0,
+  "routable_frac_buggy": 1.0,
+  "routable_frac_truth": 1.0
+ },
+ {
+  "scenario": "dense_slow",
+  "rate": 2.0,
+  "seed": 1,
+  "lookups": 420,
+  "stale_hits": 49,
+  "frames": 60,
+  "distinct_ids": 53,
+  "disagreements": 0,
+  "routable_frac_buggy": 1.0,
+  "routable_frac_truth": 1.0
+ },
+ {
+  "scenario": "medium_slow",
+  "rate": 2.0,
+  "seed": 1,
+  "lookups": 420,
+  "stale_hits": 28,
+  "frames": 60,
+  "distinct_ids": 56,
+  "disagreements": 0,
+  "routable_frac_buggy": 0.8595238095238096,
+  "routable_frac_truth": 0.8595238095238096
+ },
+ {
+  "scenario": "sparse_fast",
+  "rate": 2.0,
+  "seed": 1,
+  "lookups": 300,
+  "stale_hits": 5,
+  "frames": 60,
+  "distinct_ids": 59,
+  "disagreements": 1,
+  "routable_frac_buggy": 0.6266666666666667,
+  "routable_frac_truth": 0.6233333333333333
+ }
+]
