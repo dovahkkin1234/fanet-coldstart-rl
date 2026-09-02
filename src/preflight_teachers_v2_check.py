@@ -166,16 +166,10 @@ ORACLE_JUSTIFIED_FRAC = 0.90
 # Scenario grid spanning four genuinely distinct topology regimes (by expected
 # node degree; G1 showed dense = congestion-limited, sparse = range/partition-
 # limited, and these are physically different failure modes).
-SCENARIOS = {
-    'very_dense':  dict(num_drones=45, area_x=700,  area_y=700,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),   # degree 18.0
-    'dense_slow':  dict(num_drones=30, area_x=800,  area_y=800,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),   # degree 9.2
-    'medium_slow': dict(num_drones=30, area_x=1300, area_y=1300, comm_range=280,
-                        speed_min=5,  speed_max=15, pause_max=5.0),   # degree 4.4
-    'sparse_fast': dict(num_drones=20, area_x=1500, area_y=1500, comm_range=300,
-                        speed_min=35, speed_max=50, pause_max=2.0),   # degree 2.5
-}
+# Config now lives in config_v2.py. Per-scenario node degree (measured in the
+# M3.5 audit, kept here for readability): very_dense 18.0, dense_slow 9.2,
+# medium_slow 4.4, sparse_fast 2.5.
+from config_v2 import SCENARIOS, BASE  # noqa: F401
 
 DEFAULT_SEEDS = list(range(1, 31))   # 30 seeds, 1..30
 
@@ -234,15 +228,16 @@ def robust_cells(table, table_stats, corrected=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seeds', type=int, nargs='+', default=DEFAULT_SEEDS)
-    ap.add_argument('--rates', type=float, nargs='+', default=[0.5, 2.0, 4.0])
-    ap.add_argument('--duration', type=float, default=40.0)
-    ap.add_argument('--drain_time', type=float, default=10.0)
+    from config_v2 import RATES  # local import: only main() needs it
+    ap.add_argument('--rates', type=float, nargs='+', default=RATES)
+    ap.add_argument('--duration', type=float, default=BASE['duration'])
+    ap.add_argument('--drain_time', type=float, default=BASE['drain_time'])
     ap.add_argument('--max_workers', type=int, default=None,
                     help='ProcessPoolExecutor worker count; default = all cores')
     args = ap.parse_args()
 
-    base = dict(z_min=50, z_max=150, duration=args.duration,
-                interference_on=True, drain_time=args.drain_time)
+    base = dict(z_min=BASE['z_min'], z_max=BASE['z_max'], duration=args.duration,
+                interference_on=BASE['interference_on'], drain_time=args.drain_time)
 
     n_jobs = len(SCENARIOS) * len(args.rates) * len(args.seeds) * len(PANEL)
     print("\n" + "=" * 78)

@@ -79,19 +79,9 @@ from routing_teachers_v2 import (SPBP_V_BIAS, DAGPSR_W_PROGRESS,
                                  DAGPSR_W_QUALITY, _pos, _progress_fallback)
 from teacher_panel import build_oracle_table, paired_ttest
 
-SCENARIOS = {
-    'very_dense':  dict(num_drones=45, area_x=700,  area_y=700,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'dense_slow':  dict(num_drones=30, area_x=800,  area_y=800,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'medium_slow': dict(num_drones=30, area_x=1300, area_y=1300, comm_range=280,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'sparse_fast': dict(num_drones=20, area_x=1500, area_y=1500, comm_range=300,
-                        speed_min=35, speed_max=50, pause_max=2.0),
-}
-RATES = [0.5, 2.0, 4.0]
-BASE = dict(z_min=50, z_max=150, duration=40.0, drain_time=10.0,
-            interference_on=True)
+# Config now lives in config_v2.py -- see the note there on why eight
+# independent copies of this block were a latent hazard.
+from config_v2 import SCENARIOS, RATES, BASE, get_suite, provenance  # noqa: F401
 
 MAX_QUEUE = 50.0     # matches simulator_v2.MAX_QUEUE; occupancy = len / MAX_QUEUE
 

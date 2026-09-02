@@ -71,19 +71,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from teacher_panel import build_oracle_table
 
-SCENARIOS = {
-    'very_dense':  dict(num_drones=45, area_x=700,  area_y=700,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'dense_slow':  dict(num_drones=30, area_x=800,  area_y=800,  comm_range=250,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'medium_slow': dict(num_drones=30, area_x=1300, area_y=1300, comm_range=280,
-                        speed_min=5,  speed_max=15, pause_max=5.0),
-    'sparse_fast': dict(num_drones=20, area_x=1500, area_y=1500, comm_range=300,
-                        speed_min=35, speed_max=50, pause_max=2.0),
-}
-RATES = [0.5, 2.0, 4.0]
-BASE = dict(z_min=50, z_max=150, duration=40.0, drain_time=10.0,
-            interference_on=True)
+# Config now lives in config_v2.py -- see the note there on why eight
+# independent copies of this block were a latent hazard.
+from config_v2 import SCENARIOS, RATES, BASE, get_suite, provenance  # noqa: F401
 
 # Core panel: two congestion-blind references and the three congestion-aware
 # teachers that carry the C1/C3 claims. The full 8-teacher panel is not needed
