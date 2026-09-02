@@ -169,8 +169,11 @@ class HeadroomSimulator(FANETSimulatorV2):
 
 
 def _run(job):
-    sc, cfg, rate, seed, actor, cache_mode, collision_model = job
-    full = {**BASE, **cfg, 'packet_rate': rate, 'seed': seed, 'actor': actor,
+    sc, cfg, rate, seed, actor, cache_mode, collision_model, base = job
+    # `base` is the RESOLVED operating point (config_v2.BASE plus any CLI
+    # override), passed explicitly rather than read from the module so a worker
+    # under Windows spawn cannot pick up a different one than the parent.
+    full = {**base, **cfg, 'packet_rate': rate, 'seed': seed, 'actor': actor,
             'cache_mode': cache_mode, 'collision_model': collision_model}
     m = HeadroomSimulator(full).run()
     return {
@@ -200,10 +203,40 @@ def main():
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--quick', action='store_true')
     ap.add_argument('--out', default='results/headroom.json')
+    # -- operating point. Defaults ARE config_v2.BASE, so an unflagged run is
+    # -- unchanged; overriding here never mutates the shared module, which the
+    # -- 40 s SP-BP-parity reference depends on staying put (FILE2 3).
+    ap.add_argument('--duration', type=float, default=BASE['duration'],
+                    help='episode seconds (default: config_v2.BASE)')
+    ap.add_argument('--drain_time', type=float, default=BASE['drain_time'],
+                    help='drain seconds (default: config_v2.BASE)')
+    ap.add_argument('--z_min', type=float, default=BASE['z_min'],
+                    help='altitude floor in m (default: config_v2.BASE)')
+    ap.add_argument('--z_max', type=float, default=BASE['z_max'],
+                    help='altitude ceiling in m (default: config_v2.BASE)')
+    # -- aggregation key. 'bucket' reproduces pre-v11.2 behaviour exactly.
+    # -- 'rate' is REQUIRED for the rate probe: load_bucket() is
+    # -- (<=0.5 low, <=2.0 medium, else high), so every probe rate 0.02-0.40
+    # -- collapses into 'low' and the spread curve averages away.
+    ap.add_argument('--by', default='bucket', choices=['bucket', 'rate'],
+                    help="aggregate cells by load bucket (default) or by "
+                         "individual rate (use this for the rate probe)")
     args = ap.parse_args()
 
+    base = {**BASE, 'duration': args.duration, 'drain_time': args.drain_time,
+            'z_min': args.z_min, 'z_max': args.z_max}
+    if base != BASE:
+        print(f"\n  operating point OVERRIDDEN: duration={base['duration']}s "
+              f"drain={base['drain_time']}s alt={base['z_min']}-{base['z_max']}m")
+    if args.by == 'rate':
+        n_cells = (1 if args.quick else len(SCENARIOS)) * len(args.rates)
+        print(f"  aggregating by RATE -> {n_cells} cells "
+              f"(by bucket this would collapse to "
+              f"{len({load_bucket(r) for r in args.rates})} per scenario)")
+
     scen = {'medium_slow': SCENARIOS['medium_slow']} if args.quick else SCENARIOS
-    jobs = [(sc, cfg, r, sd, args.actor, args.cache_mode, args.collision_model)
+    jobs = [(sc, cfg, r, sd, args.actor, args.cache_mode, args.collision_model,
+             base)
             for sc, cfg in scen.items() for r in args.rates for sd in args.seeds]
 
     print("\n" + "=" * 78)
@@ -225,10 +258,14 @@ def main():
             if done % max(len(jobs) // 10, 1) == 0:
                 print(f"    {done}/{len(jobs)}")
 
-    # aggregate per (scenario, load bucket)
+    # aggregate per (scenario, load bucket) -- or per (scenario, rate) under
+    # --by rate, which the rate probe requires; see the CLI note above.
+    _key = (lambda r: (r['scenario'], r['rate'])) if args.by == 'rate' \
+        else (lambda r: (r['scenario'], r['load_bucket']))
+    _keyname = 'rate' if args.by == 'rate' else 'load_bucket'
     cells = {}
     for r in results:
-        cells.setdefault((r['scenario'], r['load_bucket']), []).append(r)
+        cells.setdefault(_key(r), []).append(r)
 
     print("\n" + "-" * 78)
     print("  CONNECTIVITY CEILING AND ROUTABLE PDR")
@@ -243,7 +280,7 @@ def main():
         prt = float(np.mean([x['pdr_routable'] for x in rs]))
         print(f"  {key[0]:<13}{key[1]:<8}{100*rf:>9.1f}%{praw:>10.3f}"
               f"{prt:>14.3f}{1-prt:>15.3f}")
-        rows.append({'scenario': key[0], 'load_bucket': key[1],
+        rows.append({'scenario': key[0], _keyname: key[1],
                      'routable_frac': rf, 'pdr_raw': praw, 'pdr_routable': prt})
 
     # loss decomposition over routable packets
@@ -265,7 +302,7 @@ def main():
             line += f"{agg.get(c, 0)/max(tot,1):>15.3f}"
         print(line)
         addressable = sum(agg.get(c, 0) for c in ROUTING_ADDRESSABLE) / max(tot, 1)
-        headroom_rows.append({'scenario': key[0], 'load_bucket': key[1],
+        headroom_rows.append({'scenario': key[0], _keyname: key[1],
                               'headroom': float(addressable)})
 
     print("\n" + "-" * 78)
@@ -321,7 +358,12 @@ def main():
                    'cache_mode': args.cache_mode,
                    'collision_model': args.collision_model,
                    'cache_stale_hits_total': int(stale_total),
-                   'schema': 'headroom_v10',
+                   'schema': 'headroom_v11_2',
+                   # RESOLVED operating point + config fingerprint. provenance()
+                   # existed since v11 but was imported and never called, which
+                   # is why dating headroom.json needed git archaeology.
+                   'provenance': {**provenance(), 'resolved_base': base,
+                                  'aggregated_by': args.by},
                    # per-seed rows, so any future comparison can be PAIRED;
                    # the archive aggregated to 12 cells before writing
                    'rows_per_seed': results},
