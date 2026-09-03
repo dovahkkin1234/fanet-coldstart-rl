@@ -175,14 +175,44 @@ def analyse(rows, rates):
             out[sc] = res
             continue
 
-        knee = max(valid, key=lambda c: c['carried'])['rate']       # §4.3.1
+        # §4.3.1 as AMENDED (A2): last MATERIAL rise, not argmax. argmax returned
+        # 0.40 where the 0.25->0.40 carried-load increment is +0.4%.
+        knee = valid[0]['rate']
+        for prev, cur in zip(valid, valid[1:]):
+            if prev['carried'] > 1e-12 and (cur['carried'] - prev['carried']) / prev['carried'] >= 0.02:
+                knee = cur['rate']
         anchor = min(c['rate'] for c in valid)                       # §4.3.2
-        peak = max(valid, key=lambda c: c['queue_value'])['rate']    # §4.3.3
+        # §4.3.3 as AMENDED (A1): a peak may not come from a floor-band cell.
+        non_floor = [c for c in valid if c['band'] != 'floor']
+        if not non_floor:
+            res.update(decision='NO MEASURABLE EFFECT -- every valid cell is floor band',
+                       grid=None, knee=knee, anchor=anchor, peak=None,
+                       note='no cell clears the floor band; sign consistency never '
+                            'reaches 0.8. Scenario needs its own decision (pre-reg §6.4).')
+            out[sc] = res
+            continue
+        peak = max(non_floor, key=lambda c: c['queue_value'])['rate']
 
-        # §4.4 boundary rule
+        # §4.4 boundary rule, as AMENDED (A3): a boundary argmax only means the
+        # RANGE is wrong if there is a genuine gradient. If relative queue value is
+        # flat, the MODEL is wrong -- there is no peak to bracket.
         probed = [c['rate'] for c in cells]
         boundary = peak in (min(probed), max(probed))
-        res.update(knee=knee, anchor=anchor, peak=peak, boundary_peak=boundary)
+        rels = [c['rel_spread'] for c in valid
+                if c['rel_spread'] == c['rel_spread'] and c['rel_spread'] > 0]
+        flat = bool(rels) and (max(rels) / min(rels) < 2.0)
+        res.update(knee=knee, anchor=anchor, peak=peak, boundary_peak=boundary,
+                   flat_response=flat,
+                   rel_spread_ratio=(max(rels) / min(rels)) if rels else float('nan'))
+        if boundary and flat:
+            res.update(decision='NO PEAK -- FLAT RESPONSE; select by coverage',
+                       grid=None,
+                       note=f'relative queue value varies by only '
+                            f'{max(rels)/min(rels):.2f}x across valid cells; the '
+                            f'inverted-U model is refuted, do NOT extend the range '
+                            f'(pre-reg §4.4 A3, §6.1)')
+            out[sc] = res
+            continue
         if boundary:
             direction = 'LOWER' if peak == min(probed) else 'HIGHER'
             res.update(decision=f'EXTEND RANGE {direction} AND RE-PROBE',
@@ -253,7 +283,28 @@ def main():
     ap.add_argument('--smoke', action='store_true',
                     help='fast plumbing check at the OLD 40s operating point, '
                          '2 scenarios x 3 rates x 2 seeds')
+    ap.add_argument('--reanalyse', metavar='JSON', default=None,
+                    help='re-run the decision rule on a saved probe JSON without '
+                         'any re-simulation. Use after amending the rules.')
     args = ap.parse_args()
+
+    if args.reanalyse:
+        with open(args.reanalyse) as f:
+            prev = json.load(f)
+        print('=' * 100)
+        print(f'  RE-ANALYSIS of {args.reanalyse} under the CURRENT decision rule')
+        print('  (no re-simulation; rows are replayed exactly as recorded)')
+        print('=' * 100)
+        print(f"  rows: {len(prev['rows_per_seed'])}  seeds: {prev['seeds']}")
+        print(f"  operating point: {prev['provenance']['resolved_base']}")
+        again = analyse(prev['rows_per_seed'], prev['rates'])
+        report(again)
+        outp = args.reanalyse.replace('.json', '_reanalysed.json')
+        with open(outp, 'w') as f:
+            json.dump({**prev, 'schema': 'probe_rate_grid_v1_reanalysed',
+                       'analysis': again}, f, indent=2)
+        print(f'\n  saved to {outp}')
+        return 0
 
     if args.smoke:
         args.duration, args.z_min, args.z_max = BASE['duration'], BASE['z_min'], BASE['z_max']
