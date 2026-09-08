@@ -110,16 +110,70 @@ def main():
             fails.append("get_suite('default') did not return 4 scenarios")
     except Exception as e:
         fails.append(f"get_suite('default') raised: {e}")
-    for empty in ('density', 'convergecast', 'tall'):
+    # v11.1: the three v8 suites are populated by v8a. Before v8a they were
+    # declared-but-empty and this check asserted they RAISE. Now it checks the
+    # real property: populated suites return the expected grid, empty ones still
+    # raise. The negative control below proves the guard, rather than assuming it.
+    EXPECTED = {
+        'density':      {f'density_{n}' for n in (50, 100, 150, 200)},
+        'convergecast': {f'sink_{n}'    for n in (50, 100, 150, 200)},
+        'tall':         {'tall_probe'},
+    }
+    for name, expect in EXPECTED.items():
         try:
-            config_v2.get_suite(empty)
-            fails.append(f"get_suite({empty!r}) returned instead of raising "
-                         f"-- an empty grid would run silently")
+            grid = config_v2.get_suite(name)
         except RuntimeError:
-            print(f"    get_suite({empty!r}) raises RuntimeError as expected (pre-v8)")
+            print(f"    get_suite({name!r}) raises -- still EMPTY (v8a not applied)")
+            continue
         except Exception as e:
-            fails.append(f"get_suite({empty!r}) raised {type(e).__name__}, "
-                         f"expected RuntimeError")
+            fails.append(f"get_suite({name!r}) raised {type(e).__name__}: {e}")
+            continue
+        got = set(grid)
+        if got != expect:
+            fails.append(f"get_suite({name!r}) returned {sorted(got)}, "
+                         f"expected {sorted(expect)}")
+        else:
+            print(f"    get_suite({name!r}) -> {len(grid)} scenarios: {sorted(got)}")
+
+    # sink scenarios must actually carry the sink_node key, or convergecast
+    # silently degrades to ordinary random-pair traffic.
+    try:
+        cg = config_v2.get_suite('convergecast')
+        missing = [k for k, v in cg.items() if 'sink_node' not in v]
+        if missing:
+            fails.append(f"convergecast scenarios missing sink_node: {missing}")
+        else:
+            print(f"    convergecast scenarios all carry sink_node")
+    except RuntimeError:
+        pass
+
+    # NEGATIVE CONTROL -- empty suite must still raise. Temporarily empty one,
+    # call get_suite, restore. Proves the guard works on today's code.
+    print("\n  NEGATIVE CONTROL -- does an EMPTY suite still raise?")
+    _saved = config_v2.SUITES.get('density')
+    config_v2.SUITES['density'] = {}
+    try:
+        config_v2.get_suite('density')
+        fails.append("empty suite did NOT raise -- an empty grid would run "
+                     "silently; the guard is dead code")
+        print("    did not raise  *** GUARD IS DEAD ***")
+    except RuntimeError as e:
+        print(f"    raises RuntimeError as required: {str(e)[:60]}...")
+    except Exception as e:
+        fails.append(f"empty suite raised {type(e).__name__}, expected RuntimeError")
+    finally:
+        if _saved is not None:
+            config_v2.SUITES['density'] = _saved
+    assert config_v2.SUITES.get('density') == _saved, "failed to restore SUITES"
+
+    # unknown suite name must raise KeyError, not return anything
+    try:
+        config_v2.get_suite('no_such_suite')
+        fails.append("unknown suite name did not raise")
+    except KeyError:
+        print("    unknown suite name raises KeyError as required")
+    except Exception as e:
+        fails.append(f"unknown suite raised {type(e).__name__}, expected KeyError")
 
     # 6 -- end to end
     print("\n  END-TO-END")

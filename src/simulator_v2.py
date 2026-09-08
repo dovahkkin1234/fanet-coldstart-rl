@@ -270,7 +270,12 @@ class FANETSimulatorV2:
         self.energy = [INITIAL_ENERGY] * self.N
         self.queues = [NodeQueue(MAX_QUEUE) for _ in range(self.N)]
 
+        # SUITE C: when set, every flow terminates at this node, and the node
+        # is pinned stationary at the area centre at z_min -- a ground station
+        # does not fly. See _pin_sink() below.
+        self.sink_node = config.get('sink_node', None)
         self.num_flows = max(1, self.N // 4)
+        self._pin_sink()
         self.flows = self._make_flows()
 
         # Metrics / counters
@@ -300,10 +305,53 @@ class FANETSimulatorV2:
         self.activity = np.zeros(self.N)
 
     # ── setup ────────────────────────────────────────────────────────────────
+    def _pin_sink(self):
+        """Place the Suite-C sink at the area centre, at z_min, and hold it.
+
+        HCPMR's GCC and CQMR/IQMR's TBS are stationary GROUND stations --
+        CQMR/IQMR place theirs explicitly "at the center of the base of the
+        cylindrical region". Suite C exists to be comparable with those, so a
+        wandering airborne sink would invalidate the one thing the suite
+        controls for.
+
+        The v8 version documented this and never implemented it: the sink
+        moved 156 m in 10 s and started at (517, 424, 215). The assertion at
+        the end makes the claim checkable rather than believed.
+        """
+        if self.sink_node is None:
+            return
+        i = int(self.sink_node)
+        d = self.drones[i]
+        cx, cy = self.area_x / 2.0, self.area_y / 2.0
+        d.x, d.y, d.z = cx, cy, float(self.z_min)
+        d.dest_x, d.dest_y, d.dest_z = cx, cy, float(self.z_min)
+        d.current_speed = 0.0
+        d.pause_max = 0.0
+        d.speed_min = d.speed_max = 0.0
+
+        # Freeze it: step() becomes a no-op for this drone, so nothing in the
+        # mobility model can nudge it off the ground station's position.
+        def _frozen(dt, _d=d, _cx=cx, _cy=cy, _z=float(self.z_min)):
+            _d.x, _d.y, _d.z = _cx, _cy, _z
+            _d.vx = _d.vy = _d.vz = 0.0
+        d.step = _frozen
+
+        d.step(1.0)
+        assert abs(d.x - cx) < 1e-9 and abs(d.y - cy) < 1e-9 \
+            and abs(d.z - self.z_min) < 1e-9, \
+            f'sink pinning failed: node {i} at ({d.x},{d.y},{d.z}), ' \
+            f'expected ({cx},{cy},{self.z_min})'
+
     def _make_flows(self):
         flows = []
         for fid in range(self.num_flows):
-            src, dst = self.rng.choice(self.N, size=2, replace=False)
+            if self.sink_node is not None:
+                # Convergecast: destination fixed, source drawn from the rest.
+                dst = int(self.sink_node)
+                choices = [i for i in range(self.N) if i != dst]
+                src = int(self.rng.choice(choices))
+            else:
+                src, dst = self.rng.choice(self.N, size=2, replace=False)
             flows.append({'flow_id': fid, 'source_id': int(src),
                           'destination_id': int(dst),
                           'packet_rate': self.packet_rate})

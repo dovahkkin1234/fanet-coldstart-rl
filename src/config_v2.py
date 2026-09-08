@@ -48,10 +48,46 @@ SCENARIOS = {
                         speed_min=35, speed_max=50, pause_max=2.0),
 }
 
-# ── v8 suites: declared, deliberately empty until v8 is applied ────────────
-SCENARIOS_TALL = {}
-SCENARIOS_DENSITY = {}
-SCENARIOS_CONVERGECAST = {}
+# ── v8a suites ─────────────────────────────────────────────────────────────
+# Populated by apply_v8a_suites_v1.py. SCENARIOS (Suite A) is deliberately NOT
+# touched, and BASE is NOT touched -- the operating-point change is v8b, which
+# ships after the SP-BP parity gate.
+
+# S3 -- ALTITUDE SCOPE-PROBE, span 500 m (100-600). REPORT SEPARATELY: this is
+# a scope probe, not a Suite A cell, and must never be pooled with one.
+SCENARIOS_TALL = {
+    'tall_probe': dict(num_drones=30, area_x=1300, area_y=1300, comm_range=280,
+                       speed_min=5, speed_max=15, pause_max=5.0,
+                       z_min=100, z_max=600),
+}
+
+# S4 -- SUITE B, CLEAN DENSITY SWEEP. Fixed geometry; vary node count ONLY, so
+# any density effect is attributable to density and nothing else. This is the
+# control Suite A lacks (Suite A varies node count, area, range AND speed
+# together -- FILE1 §4.3's recorded methodological weakness).
+_DENSITY_FIXED = dict(area_x=1000, area_y=1000, comm_range=250,
+                      speed_min=10, speed_max=30, pause_max=5.0)
+
+SCENARIOS_DENSITY = {
+    f'density_{n}': dict(_DENSITY_FIXED, num_drones=n)
+    for n in (50, 100, 150, 200)
+}
+
+# S5 -- SUITE C, CONVERGECAST COMPARABILITY. Suite B plus one fixed ground
+# sink. Suite B alone does NOT make our numbers comparable to HCPMR's: matching
+# density leaves the TRAFFIC PATTERN different (random UAV pairs vs many-to-one
+# to a fixed station). `sink_node=0` makes every flow terminate at node 0,
+# which v9 pins stationary at the area centre at z_min -- a ground station does
+# not fly.
+SCENARIOS_CONVERGECAST = {
+    f'sink_{n}': dict(_DENSITY_FIXED, num_drones=n, sink_node=0)
+    for n in (50, 100, 150, 200)
+}
+
+# Convenience union for scripts that explicitly want everything. The default
+# grid remains SCENARIOS alone -- nothing is silently averaged across suites.
+SCENARIOS_ALL = {**SCENARIOS, **SCENARIOS_TALL,
+                 **SCENARIOS_DENSITY, **SCENARIOS_CONVERGECAST}
 
 SUITES = {
     'default':      SCENARIOS,
