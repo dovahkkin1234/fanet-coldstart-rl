@@ -1,0 +1,50 @@
+{
+  "schema": "usable_band_v1",
+  "scenario": "medium_slow",
+  "duration": 20.0,
+  "alt": [
+    100,
+    300
+  ],
+  "criteria": {
+    "elastic_lo": 0.05,
+    "elastic_hi": 0.85,
+    "min_qovf": 0.02,
+    "max_energy": 0.05
+  },
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2"
+  },
+  "curve": [
+    {
+      "rate": 40.0,
+      "offered": 280.0,
+      "delivered": 1552.3333333333333,
+      "generated": 2793.0,
+      "pdr": 0.5557942475235708,
+      "q_ovf": 0.0719656283566058,
+      "energy": 0.0,
+      "link": 0.14536340852130325,
+      "dead": 0.0,
+      "elasticity": NaN,
+      "usable": false
+    }
+  ],
+  "results": {}
+}

@@ -28,7 +28,14 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from simulator_v2 import FANETSimulatorV2, ACT_BETA, ACT_ALPHA, ACT_MAX, DEFAULT_MAX_RETX
 
-CONGESTION_CAUSES = ('queue_overflow', 'link_error')
+# v22: CONGESTION_CAUSES swapped link_error -> energy_depleted. Measured:
+# with link_error counted, cong_share FELL (100%->39.4%) across the v21
+# sweep because energy_depleted (uncounted) grew ~11.7x against the counted
+# causes' ~3.3x -- a faster-growing uncounted cause was diluting the ratio.
+# queue_overflow + energy_depleted are both "node is overloaded" outcomes
+# (full buffer vs drained battery); link_error is channel/interference,
+# arguably G1's concern, not G2's. Superseded: ('queue_overflow', 'link_error').
+CONGESTION_CAUSES = ('queue_overflow', 'energy_depleted')
 
 # EXPLICIT REGRESSION ANCHOR.
 # Check 6 previously compared two runs of the SAME build to each other, which
@@ -55,9 +62,17 @@ CONGESTION_CAUSES = ('queue_overflow', 'link_error')
 # reported drift that was not drift -- and the message did not say why. The
 # anchors now ignore --actor entirely. Determinism (r1 vs r2) still runs under
 # --actor, because that is a property of the build, not of the anchor.
+# v20: anchor re-baselined. Old values (87/280, ~31%% PDR) do not reproduce
+# under the corrected simulator (v10/v12/v17/v18 all post-date whenever they
+# were measured) AND rate=1.0 was itself an uninformative choice -- a build
+# with every drop mechanism disabled also reads 100%% there. Moved to
+# REGRESSION_RATE (60.0, not the sweep midpoint `mid`, to avoid changing what
+# check 5 / check 6 test) where both actors show real mixed-cause loss.
+# Superseded: REGRESSION_DELIVERED=87, REGRESSION_GENERATED=280.
+REGRESSION_RATE = 60.0
 REGRESSION_ACTOR = 'dijkstra'
-REGRESSION_DELIVERED = 87
-REGRESSION_GENERATED = 280
+REGRESSION_DELIVERED = 8015
+REGRESSION_GENERATED = 16800
 
 # SECOND ANCHOR, LINK-QUALITY-SENSITIVE.
 # 'dijkstra' routes on hop count and ignores link_quality completely, so the
@@ -74,9 +89,11 @@ REGRESSION_GENERATED = 280
 # The M-4 collision-model flip -- a deliberate, documented physics change --
 # moves the dijkstra anchor by EXACTLY ZERO. Of the two anchors, only the
 # link-quality-sensitive one can detect the change that was just made.
+# v20: same re-baseline, same reasoning as REGRESSION_ above.
+# Superseded: REGRESSION_LQ_DELIVERED=112, REGRESSION_LQ_GENERATED=280.
 REGRESSION_LQ_ACTOR = 'spbp'
-REGRESSION_LQ_DELIVERED = 112
-REGRESSION_LQ_GENERATED = 280
+REGRESSION_LQ_DELIVERED = 7161
+REGRESSION_LQ_GENERATED = 16800
 
 
 def _anchor_block(label, res, delivered, generated, actor, fname):
@@ -136,8 +153,24 @@ def main():
     ap.add_argument('--speed_min', type=float, default=5.0)
     ap.add_argument('--speed_max', type=float, default=15.0)
     ap.add_argument('--seed', type=int, default=42)
+    # v21: sweep re-baselined. Old default [0.25, 0.5, 1.0, 2.0, 4.0] produced
+    # ZERO drops of any kind at every one of its five rates under the current
+    # simulator (measured directly on this machine, G2's own exact scenario) --
+    # the same staleness class v20 fixed for the regression anchor, here
+    # affecting checks 1-5 (queue occupancy, PDR-vs-load, taxonomy, activity,
+    # interference ON/OFF), all of which need SOME congestion to test anything.
+    # New values are measured, not estimated: monotonic PDR 0.9993->0.3745,
+    # with a visible shift from pure link_error (low rate) to energy/queue-
+    # dominant (high rate). rate=60 matches REGRESSION_RATE (v20) exactly.
     ap.add_argument('--rates', type=float, nargs='+',
-                    default=[0.25, 0.5, 1.0, 2.0, 4.0])
+                    # v22: floor raised 10->35. Measured (g2_activity_probe.py):
+                    # mean_activity is EXACTLY 0.0000 for every rate 5-30 in
+                    # this scenario -- the entire pure-link_error regime --
+                    # and check 4 requires activity>0 at EVERY sweep rate, so
+                    # no floor below ~32-35 can ever pass it. 40/60/70 kept
+                    # from v21 (already known-good); 10/20 dropped; 35/50
+                    # added (both measured). Superseded: [10.0, 20.0, 40.0, 60.0, 70.0].
+                    default=[35.0, 40.0, 50.0, 60.0, 70.0])
     ap.add_argument('--actor', default='dijkstra')
     args = ap.parse_args()
 
@@ -225,12 +258,13 @@ def main():
     # regression. r1 is reused only when its actor already equals the pinned
     # one, which is the default path and saves a redundant episode.
     _fname = os.path.basename(__file__)
-    ra = (r1 if args.actor == REGRESSION_ACTOR else
-          run({**base, 'packet_rate': mid, 'interference_on': True,
-               'actor': REGRESSION_ACTOR}))
+    # v20: REGRESSION_RATE, not mid -- r1 was built at `mid` for checks 5/6,
+    # so it can no longer be reused here even when actors match.
+    ra = run({**base, 'packet_rate': REGRESSION_RATE, 'interference_on': True,
+              'actor': REGRESSION_ACTOR})
     ok_a, armed_a = _anchor_block('REGRESSION', ra, REGRESSION_DELIVERED,
                                   REGRESSION_GENERATED, REGRESSION_ACTOR, _fname)
-    rb = run({**base, 'packet_rate': mid, 'interference_on': True,
+    rb = run({**base, 'packet_rate': REGRESSION_RATE, 'interference_on': True,
               'actor': REGRESSION_LQ_ACTOR})
     ok_b, armed_b = _anchor_block('REGRESSION_LQ', rb, REGRESSION_LQ_DELIVERED,
                                   REGRESSION_LQ_GENERATED, REGRESSION_LQ_ACTOR,

@@ -1,0 +1,784 @@
+{
+  "schema": "operating_regimes_v1",
+  "scenario": "dense_slow",
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "alt": [
+    100,
+    300
+  ],
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2",
+    "energy": {
+      "initial": 100.0,
+      "tx": 0.02,
+      "rx": 0.01
+    }
+  },
+  "regime_map": {
+    "20.0|40.0": {
+      "duration": 20.0,
+      "rate": 40.0,
+      "pdr": 0.723451485857501,
+      "dead_nodes": 0.0,
+      "regime": "interference",
+      "energy_depleted": 0.0,
+      "queue_overflow": 0.00372359470103831,
+      "link_error": 0.25384890798424636,
+      "no_route": 0.01783029001074114
+    },
+    "20.0|80.0": {
+      "duration": 20.0,
+      "rate": 80.0,
+      "pdr": 0.3583765421062042,
+      "dead_nodes": 0.0,
+      "regime": "interference",
+      "energy_depleted": 0.0,
+      "queue_overflow": 0.1068478455211872,
+      "link_error": 0.5228678705524763,
+      "no_route": 0.010155551582335063
+    },
+    "20.0|120.0": {
+      "duration": 20.0,
+      "rate": 120.0,
+      "pdr": 0.21751459549624688,
+      "dead_nodes": 0.0,
+      "regime": "interference",
+      "energy_depleted": 0.0,
+      "queue_overflow": 0.3468843083521983,
+      "link_error": 0.4258072203026331,
+      "no_route": 0.009793875848921722
+    },
+    "40.0|40.0": {
+      "duration": 40.0,
+      "rate": 40.0,
+      "pdr": 0.7874419158822829,
+      "dead_nodes": 1.0,
+      "regime": "interference",
+      "energy_depleted": 0.015465268676277849,
+      "queue_overflow": 0.0014059335160252593,
+      "link_error": 0.18851423805552248,
+      "no_route": 0.0066245680924579995
+    },
+    "40.0|80.0": {
+      "duration": 40.0,
+      "rate": 80.0,
+      "pdr": 0.23385934615613652,
+      "dead_nodes": 6.8,
+      "regime": "energy",
+      "energy_depleted": 0.43082236646221633,
+      "queue_overflow": 0.06252605252188412,
+      "link_error": 0.26865956053117374,
+      "no_route": 0.004132674328589293
+    },
+    "40.0|120.0": {
+      "duration": 40.0,
+      "rate": 120.0,
+      "pdr": 0.1199222006112809,
+      "dead_nodes": 7.0,
+      "regime": "energy",
+      "energy_depleted": 0.42386377168261025,
+      "queue_overflow": 0.25923073869725716,
+      "link_error": 0.1938078037550113,
+      "no_route": 0.003175485253840353
+    }
+  },
+  "phase2": [],
+  "rows": [
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 40.0,
+      "seed": 3,
+      "actor": "spbp",
+      "pdr": 0.8517722878625135,
+      "n_generated": 2793,
+      "n_delivered": 2379,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 414
+      },
+      "share": {
+        "link_error": 0.14822771213748656
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 40.0,
+      "seed": 1,
+      "actor": "spbp",
+      "pdr": 0.8431793770139635,
+      "n_generated": 2793,
+      "n_delivered": 2355,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 438
+      },
+      "share": {
+        "link_error": 0.15682062298603652
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 40.0,
+      "seed": 4,
+      "actor": "spbp",
+      "pdr": 0.7948442534908701,
+      "n_generated": 2793,
+      "n_delivered": 2220,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 531,
+        "no_route": 38,
+        "queue_overflow": 4
+      },
+      "share": {
+        "link_error": 0.19011815252416756,
+        "no_route": 0.013605442176870748,
+        "queue_overflow": 0.0014321518080916578
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 40.0,
+      "seed": 5,
+      "actor": "spbp",
+      "pdr": 0.5467239527389903,
+      "n_generated": 2793,
+      "n_delivered": 1527,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 1191,
+        "no_route": 58,
+        "queue_overflow": 17
+      },
+      "share": {
+        "link_error": 0.4264232008592911,
+        "no_route": 0.020766201217329038,
+        "queue_overflow": 0.006086645184389545
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 40.0,
+      "seed": 2,
+      "actor": "spbp",
+      "pdr": 0.5807375581811672,
+      "n_generated": 2793,
+      "n_delivered": 1622,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 971,
+        "no_route": 153,
+        "queue_overflow": 31,
+        "ttl_expired": 16
+      },
+      "share": {
+        "link_error": 0.3476548514142499,
+        "no_route": 0.05477980665950591,
+        "queue_overflow": 0.011099176512710347,
+        "ttl_expired": 0.005728607232366631
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 80.0,
+      "seed": 1,
+      "actor": "spbp",
+      "pdr": 0.48650098337207226,
+      "n_generated": 5593,
+      "n_delivered": 2721,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 2563,
+        "queue_overflow": 228,
+        "no_route": 81
+      },
+      "share": {
+        "link_error": 0.4582513856606472,
+        "queue_overflow": 0.04076524226711961,
+        "no_route": 0.014482388700160916
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 80.0,
+      "seed": 3,
+      "actor": "spbp",
+      "pdr": 0.5027713212944752,
+      "n_generated": 5593,
+      "n_delivered": 2812,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 2298,
+        "queue_overflow": 481,
+        "no_route": 2
+      },
+      "share": {
+        "link_error": 0.4108707312712319,
+        "queue_overflow": 0.08600035758984445,
+        "no_route": 0.00035758984444841767
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 80.0,
+      "seed": 4,
+      "actor": "spbp",
+      "pdr": 0.39728231718219204,
+      "n_generated": 5593,
+      "n_delivered": 2222,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 2749,
+        "queue_overflow": 499,
+        "no_route": 123
+      },
+      "share": {
+        "link_error": 0.4915072411943501,
+        "queue_overflow": 0.08921866618988021,
+        "no_route": 0.021991775433577686
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 40.0,
+      "seed": 1,
+      "actor": "spbp",
+      "pdr": 0.8807339449541285,
+      "n_generated": 8393,
+      "n_delivered": 7392,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 1001
+      },
+      "share": {
+        "link_error": 0.11926605504587157
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 120.0,
+      "seed": 3,
+      "actor": "spbp",
+      "pdr": 0.2895269867746932,
+      "n_generated": 8393,
+      "n_delivered": 2430,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 2632,
+        "link_error": 3324,
+        "no_route": 7
+      },
+      "share": {
+        "queue_overflow": 0.31359466221851545,
+        "link_error": 0.39604432264982725,
+        "no_route": 0.0008340283569641367
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 120.0,
+      "seed": 1,
+      "actor": "spbp",
+      "pdr": 0.292743953294412,
+      "n_generated": 8393,
+      "n_delivered": 2457,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 2312,
+        "link_error": 3530,
+        "no_route": 94
+      },
+      "share": {
+        "queue_overflow": 0.2754676516144406,
+        "link_error": 0.4205885857262004,
+        "no_route": 0.01119980936494698
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 80.0,
+      "seed": 2,
+      "actor": "spbp",
+      "pdr": 0.20543536563561596,
+      "n_generated": 5593,
+      "n_delivered": 1149,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 3179,
+        "queue_overflow": 1184,
+        "no_route": 32,
+        "ttl_expired": 49
+      },
+      "share": {
+        "link_error": 0.5683890577507599,
+        "queue_overflow": 0.21169318791346325,
+        "no_route": 0.005721437511174683,
+        "ttl_expired": 0.008760951188986232
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 120.0,
+      "seed": 2,
+      "actor": "spbp",
+      "pdr": 0.1204575241272489,
+      "n_generated": 8393,
+      "n_delivered": 1011,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 3907,
+        "link_error": 3440,
+        "no_route": 35
+      },
+      "share": {
+        "queue_overflow": 0.46550697009412606,
+        "link_error": 0.40986536399380435,
+        "no_route": 0.004170141784820684
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 80.0,
+      "seed": 5,
+      "actor": "spbp",
+      "pdr": 0.19989272304666547,
+      "n_generated": 5593,
+      "n_delivered": 1118,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 3833,
+        "queue_overflow": 596,
+        "no_route": 46
+      },
+      "share": {
+        "link_error": 0.6853209368853924,
+        "queue_overflow": 0.10656177364562847,
+        "no_route": 0.008224566422313607
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 120.0,
+      "seed": 4,
+      "actor": "spbp",
+      "pdr": 0.26200405099487667,
+      "n_generated": 8393,
+      "n_delivered": 2199,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 2839,
+        "link_error": 3152,
+        "no_route": 203
+      },
+      "share": {
+        "queue_overflow": 0.33825807220302634,
+        "link_error": 0.37555105445013703,
+        "no_route": 0.02418682235195997
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 20.0,
+      "rate": 120.0,
+      "seed": 5,
+      "actor": "spbp",
+      "pdr": 0.12284046229000357,
+      "n_generated": 8393,
+      "n_delivered": 1031,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 2867,
+        "link_error": 4423,
+        "no_route": 72
+      },
+      "share": {
+        "queue_overflow": 0.3415941856308829,
+        "link_error": 0.5269867746931967,
+        "no_route": 0.008578577385916835
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 40.0,
+      "seed": 3,
+      "actor": "spbp",
+      "pdr": 0.8794233289646134,
+      "n_generated": 8393,
+      "n_delivered": 7381,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 1012
+      },
+      "share": {
+        "link_error": 0.12057667103538663
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 40.0,
+      "seed": 4,
+      "actor": "spbp",
+      "pdr": 0.822709400691052,
+      "n_generated": 8393,
+      "n_delivered": 6905,
+      "dead_nodes": 0,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 1445,
+        "no_route": 39,
+        "queue_overflow": 4
+      },
+      "share": {
+        "link_error": 0.1721672822590254,
+        "no_route": 0.0046467294173716195,
+        "queue_overflow": 0.0004765876325509353
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 40.0,
+      "seed": 2,
+      "actor": "spbp",
+      "pdr": 0.6953413558918146,
+      "n_generated": 8393,
+      "n_delivered": 5836,
+      "dead_nodes": 1,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 1977,
+        "no_route": 162,
+        "queue_overflow": 38,
+        "ttl_expired": 23,
+        "energy_depleted": 357
+      },
+      "share": {
+        "link_error": 0.23555343738829979,
+        "no_route": 0.01930179911831288,
+        "queue_overflow": 0.004527582509233886,
+        "ttl_expired": 0.002740378887167878,
+        "energy_depleted": 0.042535446205170975
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 80.0,
+      "seed": 1,
+      "actor": "spbp",
+      "pdr": 0.2900613350800929,
+      "n_generated": 16793,
+      "n_delivered": 4871,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 4032,
+        "queue_overflow": 803,
+        "no_route": 81,
+        "energy_depleted": 7006
+      },
+      "share": {
+        "link_error": 0.240100041684035,
+        "queue_overflow": 0.047817543023879,
+        "no_route": 0.004823438337402489,
+        "energy_depleted": 0.41719764187459063
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 40.0,
+      "seed": 5,
+      "actor": "spbp",
+      "pdr": 0.6590015489098058,
+      "n_generated": 8393,
+      "n_delivered": 5531,
+      "dead_nodes": 4,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 2476,
+        "no_route": 77,
+        "queue_overflow": 17,
+        "energy_depleted": 292
+      },
+      "share": {
+        "link_error": 0.29500774454902895,
+        "no_route": 0.009174311926605505,
+        "queue_overflow": 0.002025497438341475,
+        "energy_depleted": 0.03479089717621828
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 80.0,
+      "seed": 3,
+      "actor": "spbp",
+      "pdr": 0.34913356755791103,
+      "n_generated": 16793,
+      "n_delivered": 5863,
+      "dead_nodes": 6,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 3775,
+        "queue_overflow": 695,
+        "no_route": 2,
+        "energy_depleted": 6458
+      },
+      "share": {
+        "link_error": 0.22479604597153577,
+        "queue_overflow": 0.041386291907342346,
+        "no_route": 0.0001190972428988269,
+        "energy_depleted": 0.384564997320312
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 80.0,
+      "seed": 2,
+      "actor": "spbp",
+      "pdr": 0.1776335377836003,
+      "n_generated": 16793,
+      "n_delivered": 2983,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 4770,
+        "queue_overflow": 1846,
+        "no_route": 94,
+        "energy_depleted": 7100
+      },
+      "share": {
+        "link_error": 0.28404692431370215,
+        "queue_overflow": 0.10992675519561722,
+        "no_route": 0.005597570416244864,
+        "energy_depleted": 0.42279521229083544
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 120.0,
+      "seed": 1,
+      "actor": "spbp",
+      "pdr": 0.14448457904973605,
+      "n_generated": 25193,
+      "n_delivered": 3640,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 5674,
+        "link_error": 4590,
+        "no_route": 94,
+        "energy_depleted": 11195
+      },
+      "share": {
+        "queue_overflow": 0.225221291628627,
+        "link_error": 0.18219346643909023,
+        "no_route": 0.003731195173262414,
+        "energy_depleted": 0.4443694677092843
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 120.0,
+      "seed": 3,
+      "actor": "spbp",
+      "pdr": 0.17893859405390386,
+      "n_generated": 25193,
+      "n_delivered": 4508,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 5812,
+        "link_error": 4314,
+        "no_route": 7,
+        "energy_depleted": 10552
+      },
+      "share": {
+        "queue_overflow": 0.23069900369150162,
+        "link_error": 0.171238042313341,
+        "no_route": 0.0002778549597110308,
+        "energy_depleted": 0.41884650498154247
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 80.0,
+      "seed": 5,
+      "actor": "spbp",
+      "pdr": 0.1359495027690109,
+      "n_generated": 16793,
+      "n_delivered": 2283,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 5127,
+        "queue_overflow": 836,
+        "no_route": 46,
+        "energy_depleted": 8501
+      },
+      "share": {
+        "link_error": 0.30530578217114274,
+        "queue_overflow": 0.04978264753170964,
+        "no_route": 0.0027392365866730187,
+        "energy_depleted": 0.5062228309414637
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 80.0,
+      "seed": 4,
+      "actor": "spbp",
+      "pdr": 0.2165187875900673,
+      "n_generated": 16793,
+      "n_delivered": 3636,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "link_error": 4854,
+        "queue_overflow": 1070,
+        "no_route": 124,
+        "energy_depleted": 7109
+      },
+      "share": {
+        "link_error": 0.28904900851545284,
+        "queue_overflow": 0.06371702495087239,
+        "no_route": 0.007384029059727268,
+        "energy_depleted": 0.4233311498838802
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 120.0,
+      "seed": 2,
+      "actor": "spbp",
+      "pdr": 0.07065454689794784,
+      "n_generated": 25193,
+      "n_delivered": 1780,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 8106,
+        "link_error": 4980,
+        "no_route": 30,
+        "energy_depleted": 10297
+      },
+      "share": {
+        "queue_overflow": 0.3217560433453737,
+        "link_error": 0.19767395705156193,
+        "no_route": 0.0011908069701901322,
+        "energy_depleted": 0.4087246457349264
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 120.0,
+      "seed": 5,
+      "actor": "spbp",
+      "pdr": 0.07053546620092883,
+      "n_generated": 25193,
+      "n_delivered": 1777,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 6265,
+        "link_error": 5394,
+        "no_route": 72,
+        "energy_depleted": 11685
+      },
+      "share": {
+        "queue_overflow": 0.24868018894137262,
+        "link_error": 0.21410709324018576,
+        "no_route": 0.002857936728456317,
+        "energy_depleted": 0.4638193148890565
+      }
+    },
+    {
+      "scenario": "dense_slow",
+      "duration": 40.0,
+      "rate": 120.0,
+      "seed": 4,
+      "actor": "spbp",
+      "pdr": 0.13499781685388798,
+      "n_generated": 25193,
+      "n_delivered": 3401,
+      "dead_nodes": 7,
+      "n_nodes": 30,
+      "drops": {
+        "queue_overflow": 6797,
+        "link_error": 5135,
+        "no_route": 197,
+        "energy_depleted": 9663
+      },
+      "share": {
+        "queue_overflow": 0.26979716587941094,
+        "link_error": 0.20382645973087762,
+        "no_route": 0.007819632437581868,
+        "energy_depleted": 0.3835589250982416
+      }
+    }
+  ]
+}

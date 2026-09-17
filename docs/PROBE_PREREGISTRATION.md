@@ -281,10 +281,24 @@ there, because the queue term also prevents losses outside it.)*
 
 ### 6.3 FROZEN GRID
 
-Selected by **coverage**, not peak-finding, per A3:
+> **SUPERSEDED (v19).** This grid was measured on data later found to be
+> leak-contaminated (the v12 destination-queue leak -- see
+> `apply_delivery_leak_fix_v12.py`). It is void, not merely outdated.
+>
+> A second generation (v13's congestion-window rates, per-flow
+> `[20, 35, 50, 65, 80, 100, 120]`) replaced it post-leak-fix, measured at the
+> operating point BEFORE the energy-ceiling investigation. That is also
+> superseded.
+>
+> **Current truth is `LOAD_DENSITY_DESIGN.md`** -- per-SCENARIO grids derived
+> from each scenario's own measured usable band at the final operating point
+> (1000 s, `INITIAL_ENERGY=8000`, per `apply_v8b_operating_point_STAGED.py`).
+> The text below is kept for history; do not use it to configure anything.
+
+Selected by **coverage**, not peak-finding, per A3 (historical; see note above):
 
 ```
-RATES = [0.02, 0.05, 0.10, 0.25, 0.40]
+RATES = [0.02, 0.05, 0.10, 0.25, 0.40]   # VOID -- see LOAD_DENSITY_DESIGN.md
 ```
 
 Spans `spbp` routable PDR 0.76 → 0.095 in `dense_slow`, roughly log-spaced over probed

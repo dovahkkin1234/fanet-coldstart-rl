@@ -230,10 +230,17 @@ def norm_constants(cfg):
         'z_max': float(cfg['z_max']),
         'speed_max': float(cfg.get('speed_max', 15.0)),
         'comm_range': float(cfg['comm_range']),
-        'max_queue': MAX_QUEUE_REF,
-        'initial_energy': INITIAL_ENERGY_REF,
-        'ttl': TTL_REF,
-        'lifetime_ref': LIFETIME_REF,
+        # v18: follow cfg, same fix as v17 applied to 'initial_energy'.
+        'max_queue': float(cfg.get('max_queue', MAX_QUEUE_REF)),
+        # v17: follow the CONFIGURED battery, not a hardcoded twin of
+        # simulator_v2.INITIAL_ENERGY. Every other entry in this dict
+        # already reads from cfg; this one did not, so raising the
+        # simulator's battery to 8000 would have normalised energy by
+        # 100 and emitted a feature of ~80.0 instead of ~1.0, silently,
+        # with no gate able to detect it.
+        'initial_energy': float(cfg.get('initial_energy', INITIAL_ENERGY_REF)),
+        'ttl': float(cfg.get('ttl', TTL_REF)),
+        'lifetime_ref': float(cfg.get('lifetime_ref', LIFETIME_REF)),
         'hop_cap': HOP_CAP,
         'buffered_ref': BUFFERED_REF,
         # Degree normaliser. Was max(N-1, 1) read off the live graph and never

@@ -267,7 +267,13 @@ class FANETSimulatorV2:
             for i in range(self.N)
         ]
 
-        self.energy = [INITIAL_ENERGY] * self.N
+        # v14: overridable per config. Default is UNCHANGED (INITIAL_ENERGY),
+        # so every pre-v14 result is bit-identical unless a config explicitly
+        # sets 'initial_energy'. Exists because the energy ceiling -- not the
+        # rate grid -- is what makes 1000 s episodes and a congestion regime
+        # mutually exclusive, and that needs to be measured before being pinned.
+        self.initial_energy = float(config.get('initial_energy', INITIAL_ENERGY))
+        self.energy = [self.initial_energy] * self.N
         self.queues = [NodeQueue(MAX_QUEUE) for _ in range(self.N)]
 
         # SUITE C: when set, every flow terminates at this node, and the node
@@ -657,12 +663,30 @@ class FANETSimulatorV2:
                                     lq=lq_eff)
             return True
 
-        # receiver queue admission (tail-drop)
-        if not self.queues[next_hop].enqueue(pkt):
-            pkt.dropped = True; pkt.drop_reason = 'queue_overflow'
-            self._record_transition(pkt, next_hop, -10.0, True, dropped=True,
-                                    lq=lq_eff)
-            return True
+        # v12 LEAK FIX. Determine delivery BEFORE queue admission.
+        #
+        # Previously every packet -- including one arriving at its own
+        # destination -- was enqueued here, then marked delivered below and
+        # removed from `active`. Nothing ever released the slot, because the
+        # only buffer.remove() in this file is for packets being FORWARDED. So
+        # destination queues filled permanently and never drained. In
+        # convergecast this pinned delivery at exactly MAX_QUEUE forever; in
+        # Suite A it decayed PDR smoothly with episode length, with zero
+        # overflow drops, which is why it went unnoticed for four milestones.
+        #
+        # SEMANTICS (recorded decision): a delivered packet is consumed on
+        # arrival and occupies zero buffer. See the module docstring.
+        delivered_now = (next_hop == dst)
+
+        # receiver queue admission (tail-drop) -- ONLY for packets that still
+        # need forwarding. A packet that has physically arrived is not
+        # tail-dropped by the queue of the node it arrived at.
+        if not delivered_now:
+            if not self.queues[next_hop].enqueue(pkt):
+                pkt.dropped = True; pkt.drop_reason = 'queue_overflow'
+                self._record_transition(pkt, next_hop, -10.0, True, dropped=True,
+                                        lq=lq_eff)
+                return True
 
         # commit the hop (TX energy already charged per attempt in the ARQ loop)
         self.energy[next_hop] = EnergyModel.consume_rx(self.energy[next_hop])
@@ -672,7 +696,7 @@ class FANETSimulatorV2:
         pkt.hops += 1
         pkt.cum_delay_ms += HOP_DELAY_MS
 
-        delivered_now = (next_hop == dst)
+        # delivered_now was computed above, before queue admission (v12)
         if delivered_now:
             pkt.delivered = True
             pkt.delivery_time = t
@@ -680,6 +704,63 @@ class FANETSimulatorV2:
         self._record_transition(pkt, next_hop, r, done=delivered_now,
                                 delivered=delivered_now, lq=lq_eff)
         return delivered_now
+
+    def _assert_queue_conservation(self, where=''):
+        """QUEUE-SLOT CONSERVATION -- the invariant whose absence hid the v12 leak.
+
+        Packet-COUNT conservation (generated == delivered + dropped) passed 8/8
+        cells even with the leak present, because delivered packets were counted
+        correctly; it was their SLOTS that leaked. The right invariant is:
+
+            every packet occupying a queue slot is neither delivered nor dropped
+
+        Returns the number of phantom slots (0 when healthy). Raises instead of
+        warning when the config sets strict_conservation=True.
+        """
+        # 'episode_end' is NOT a leak: those packets were legitimately in flight,
+        # occupying real queue slots, when the episode stopped. The drain sweep
+        # marks them dropped just before _metrics() runs, so counting them would
+        # be a false positive of this check's own placement -- which is exactly
+        # what the first draft did, flagging 9 slots in sparse_fast.
+        phantom = [(nid, p.pid, p.drop_reason) for nid, q in enumerate(self.queues)
+                   for p in q.buffer
+                   if (p.delivered or p.dropped) and p.drop_reason != 'episode_end']
+        if phantom:
+            msg = (f"QUEUE-SLOT CONSERVATION VIOLATED{(' at ' + where) if where else ''}: "
+                   f"{len(phantom)} slot(s) held by already-delivered/dropped packets "
+                   f"(first: node={phantom[0][0]} pid={phantom[0][1]} "
+                   f"reason={phantom[0][2]!r}). "
+                   f"This is the v12 destination-queue leak or a regression of it.")
+            # Read from self.cfg, matching how every other option in this class
+            # is read. A first draft used getattr(self, 'strict_conservation')
+            # -- an attribute nothing ever sets -- so strict mode silently
+            # warned instead of raising. Caught by the negative control.
+            if bool(self.cfg.get('strict_conservation', False)):
+                raise AssertionError(msg)
+            import warnings
+            warnings.warn(msg, RuntimeWarning)
+        return len(phantom)
+
+    def _assert_node_id_invariant(self, G):
+        """NODE-ID INVARIANT -- load-bearing for the GNN, previously unasserted.
+
+        `cand_flat` stores GLOBAL drone ids, but they are used directly as
+        FRAME-LOCAL row indices to gather node embeddings. That is only valid
+        while every frame graph holds all N nodes with ids 0..N-1 in sorted
+        order, making features_v2's idx_of the identity map. True today
+        (verified: 80 frames x 4 scenarios, 0 violations) but nothing checked
+        it. If a future change drops isolated nodes -- a natural optimisation in
+        sparse_fast -- the GNN would silently gather the WRONG nodes' embeddings
+        with no error raised anywhere.
+        """
+        n = G.number_of_nodes()
+        if n != self.N or min(G.nodes()) != 0 or max(G.nodes()) != self.N - 1:
+            raise AssertionError(
+                f"NODE-ID INVARIANT VIOLATED: frame graph has {n} nodes with id "
+                f"range [{min(G.nodes())}, {max(G.nodes())}], expected {self.N} "
+                f"nodes with ids 0..{self.N - 1}. Global candidate ids are used "
+                f"as frame-local embedding row indices and would now gather the "
+                f"WRONG nodes silently. See simulator_v2._assert_node_id_invariant.")
 
     def _make_obs(self, G, pkt, neighbors):
         """Placeholder observation (M4 replaces with GNN+attention features).
@@ -809,6 +890,13 @@ class FANETSimulatorV2:
                 for pkt in active:
                     if pkt.hops >= TTL and not (pkt.delivered or pkt.dropped):
                         pkt.dropped = True; pkt.drop_reason = 'ttl_expired'
+                        # v12: free the slot. Without this the TTL-dropped packet
+                        # keeps occupying its queue forever -- the same leak class
+                        # as the delivery bug, found by the new invariant on its
+                        # first run.
+                        q = self.queues[pkt.current]
+                        if pkt in q.buffer:
+                            q.buffer.remove(pkt)
                         self._finish_packet(pkt)
                     else:
                         survivors.append(pkt)
@@ -834,8 +922,12 @@ class FANETSimulatorV2:
         return self._metrics()
 
     def _metrics(self):
+        # v12: check the slot invariant once per episode. Cheap (one pass over
+        # the queues) and it is the check that would have caught the leak.
+        n_phantom = self._assert_queue_conservation('episode end')
         pdr = self.n_delivered / max(self.n_generated, 1)
         return {
+            'n_phantom_slots': n_phantom,
             'scenario_id': self.scenario_id, 'seed': self.seed,
             'actor': self.actor_name, 'interference_on': self.interference_on,
             'packet_rate': self.packet_rate,

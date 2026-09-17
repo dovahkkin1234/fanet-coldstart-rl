@@ -1,0 +1,172 @@
+{
+  "schema": "congestion_band_convergecast_v1",
+  "scenario": "sink_50",
+  "duration": 1000.0,
+  "initial_energy": 8000.0,
+  "criteria": {
+    "elastic_lo": 0.05,
+    "elastic_hi": 0.85,
+    "min_qovf": 0.02,
+    "max_energy": 0.05
+  },
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2"
+  },
+  "curve": [
+    {
+      "rate": 20.0,
+      "offered": 240.0,
+      "delivered": 184484.66666666666,
+      "generated": 237600.0,
+      "pdr": 0.7764506172839506,
+      "q_ovf": 0.10590207631874297,
+      "energy": 0.0,
+      "link": 0.11757575757575757,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7692691666616076,
+      "elasticity": NaN,
+      "usable": false
+    },
+    {
+      "rate": 30.0,
+      "offered": 360.0,
+      "delivered": 211932.33333333334,
+      "generated": 356400.0,
+      "pdr": 0.5946473999251777,
+      "q_ovf": 0.14447717919940142,
+      "energy": 0.0,
+      "link": 0.260827721661055,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7349595833275253,
+      "elasticity": 0.2975604115247159,
+      "usable": true
+    },
+    {
+      "rate": 40.0,
+      "offered": 480.0,
+      "delivered": 200120.0,
+      "generated": 475188.0,
+      "pdr": 0.4211385809405961,
+      "q_ovf": 0.18120056342612467,
+      "energy": 0.0,
+      "link": 0.3976250803190877,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7497249999945144,
+      "elasticity": -0.16720903055535036,
+      "usable": false
+    },
+    {
+      "rate": 50.0,
+      "offered": 600.0,
+      "delivered": 195953.0,
+      "generated": 593988.0,
+      "pdr": 0.3298938699098299,
+      "q_ovf": 0.21980466496517326,
+      "energy": 0.0005566891362564002,
+      "link": 0.449716155881937,
+      "dead": 0.3333333333333333,
+      "sink_energy_frac": 0.7549337499946279,
+      "elasticity": -0.08329002598440935,
+      "usable": false
+    },
+    {
+      "rate": 60.0,
+      "offered": 720.0,
+      "delivered": 180915.66666666666,
+      "generated": 712800.0,
+      "pdr": 0.2538098578376356,
+      "q_ovf": 0.25998690609801717,
+      "energy": 0.006215862326973438,
+      "link": 0.4799635241301908,
+      "dead": 0.6666666666666666,
+      "sink_energy_frac": 0.7737304166617051,
+      "elasticity": -0.383697451259571,
+      "usable": false
+    }
+  ],
+  "results": {
+    "30.0": {
+      "spbp_ab_noqueue": {
+        "pdr": 0.6665534979423868,
+        "delta": 0.0,
+        "ci_lo": 0.0,
+        "ci_hi": 0.0,
+        "p_raw": 1.0,
+        "consistency": 0.0,
+        "delivered": 237559.66666666666,
+        "mean_hops": 2.3255459958937355,
+        "n_zero_delivery_seeds": 0
+      },
+      "spbp_ab_full": {
+        "pdr": 0.7020665918443696,
+        "delta": 0.03551309390198278,
+        "ci_lo": 0.01437425077579619,
+        "ci_hi": 0.056651937028169376,
+        "p_raw": 0.002879993613991489,
+        "consistency": 0.8666666666666667,
+        "delivered": 250216.53333333333,
+        "mean_hops": 2.5109078234895086,
+        "n_zero_delivery_seeds": 0,
+        "p_holm_flat": 0.008639980841974468,
+        "significant_flat": true,
+        "p_holm_tier1": 0.002879993613991489,
+        "significant_tier1": true,
+        "p_holm_tier2": NaN,
+        "significant_tier2": false,
+        "significant": true
+      },
+      "spbp_ab_candqueue": {
+        "pdr": 0.7060246913580247,
+        "delta": 0.03947119341563784,
+        "ci_lo": 0.015773344533272456,
+        "ci_hi": 0.06316904229800321,
+        "p_raw": 0.0030619140829289174,
+        "consistency": 0.8666666666666667,
+        "delivered": 251627.2,
+        "mean_hops": 2.4655806800937556,
+        "n_zero_delivery_seeds": 0,
+        "p_holm_flat": 0.008639980841974468,
+        "significant_flat": true,
+        "p_holm_tier1": NaN,
+        "significant_tier1": false,
+        "p_holm_tier2": 0.006123828165857835,
+        "significant_tier2": true,
+        "significant": true
+      },
+      "spbp_ab_additive": {
+        "pdr": 0.7034334081556305,
+        "delta": 0.03687991021324355,
+        "ci_lo": 0.01149037034955738,
+        "ci_hi": 0.06226945007692972,
+        "p_raw": 0.0075958331245385684,
+        "consistency": 0.8666666666666667,
+        "delivered": 250703.66666666666,
+        "mean_hops": 2.5193162610823934,
+        "n_zero_delivery_seeds": 0,
+        "p_holm_flat": 0.008639980841974468,
+        "significant_flat": true,
+        "p_holm_tier1": NaN,
+        "significant_tier1": false,
+        "p_holm_tier2": 0.0075958331245385684,
+        "significant_tier2": true,
+        "significant": true
+      }
+    }
+  }
+}

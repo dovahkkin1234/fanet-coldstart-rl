@@ -1,0 +1,1512 @@
+{
+  "schema": "panel_convergecast_oracle_v1",
+  "quick": true,
+  "alpha": 0.05,
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2",
+    "resolved_base": {
+      "z_min": 100,
+      "z_max": 300,
+      "duration": 1000.0,
+      "drain_time": 10.0,
+      "interference_on": true
+    }
+  },
+  "teachers": [
+    "dijkstra",
+    "gpsr",
+    "backpressure",
+    "spbp",
+    "da_gpsr",
+    "dpp",
+    "car",
+    "spbp_lookahead"
+  ],
+  "rates": [
+    0.05,
+    0.1,
+    0.25
+  ],
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "scenarios": [
+    "sink_50"
+  ],
+  "analysis": {
+    "sink_50|0.05": {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "means": {
+        "spbp": 0.08503401360544217,
+        "dijkstra": 0.08503401360544217,
+        "da_gpsr": 0.08503401360544217,
+        "backpressure": 0.08503401360544217,
+        "dpp": 0.08503401360544217,
+        "car": 0.08503401360544217,
+        "gpsr": 0.08503401360544217,
+        "spbp_lookahead": 0.08503401360544217
+      },
+      "winner": "dijkstra",
+      "tied_with_winner": [
+        "dijkstra",
+        "gpsr",
+        "backpressure",
+        "spbp",
+        "da_gpsr",
+        "dpp",
+        "car",
+        "spbp_lookahead"
+      ],
+      "all_tied": true,
+      "comparisons": {
+        "dijkstra": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "gpsr": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "backpressure": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "da_gpsr": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "dpp": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "car": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "spbp_lookahead": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        }
+      }
+    },
+    "sink_50|0.1": {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "means": {
+        "dijkstra": 0.04208754208754209,
+        "gpsr": 0.04208754208754209,
+        "spbp": 0.04208754208754209,
+        "backpressure": 0.04208754208754209,
+        "da_gpsr": 0.04208754208754209,
+        "car": 0.04208754208754209,
+        "dpp": 0.04208754208754209,
+        "spbp_lookahead": 0.04208754208754209
+      },
+      "winner": "dijkstra",
+      "tied_with_winner": [
+        "dijkstra",
+        "gpsr",
+        "backpressure",
+        "spbp",
+        "da_gpsr",
+        "dpp",
+        "car",
+        "spbp_lookahead"
+      ],
+      "all_tied": true,
+      "comparisons": {
+        "dijkstra": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "gpsr": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "backpressure": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "da_gpsr": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "dpp": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "car": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "spbp_lookahead": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        }
+      }
+    },
+    "sink_50|0.25": {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "means": {
+        "gpsr": 0.016869095816464237,
+        "dijkstra": 0.016869095816464237,
+        "spbp": 0.016869095816464237,
+        "backpressure": 0.016869095816464237,
+        "da_gpsr": 0.016869095816464237,
+        "dpp": 0.016869095816464237,
+        "car": 0.016869095816464237,
+        "spbp_lookahead": 0.016869095816464237
+      },
+      "winner": "dijkstra",
+      "tied_with_winner": [
+        "dijkstra",
+        "gpsr",
+        "backpressure",
+        "spbp",
+        "da_gpsr",
+        "dpp",
+        "car",
+        "spbp_lookahead"
+      ],
+      "all_tied": true,
+      "comparisons": {
+        "dijkstra": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "gpsr": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "backpressure": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "da_gpsr": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "dpp": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "car": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        },
+        "spbp_lookahead": {
+          "delta": 0.0,
+          "p_raw": 1.0,
+          "n_pairs": 3,
+          "p_holm": 1.0,
+          "significant": false
+        }
+      }
+    }
+  },
+  "rows_per_episode": [
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "spbp",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 529,
+        "link_error": 8,
+        "no_route": 1
+      },
+      "mean_delay_ms": 9.04,
+      "secs": 67.63786768913269,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "dijkstra",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 522,
+        "link_error": 15,
+        "no_route": 1
+      },
+      "mean_delay_ms": 9.28,
+      "secs": 67.84673261642456,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "da_gpsr",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 16,
+        "queue_overflow": 520,
+        "no_route": 2
+      },
+      "mean_delay_ms": 10.28,
+      "secs": 68.09298467636108,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "backpressure",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 69,
+        "queue_overflow": 460,
+        "link_error": 9
+      },
+      "mean_delay_ms": 9.92,
+      "secs": 68.10787200927734,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "dpp",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 92,
+        "queue_overflow": 439,
+        "link_error": 7
+      },
+      "mean_delay_ms": 10.84,
+      "secs": 68.10300326347351,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "car",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 522,
+        "link_error": 14,
+        "no_route": 2
+      },
+      "mean_delay_ms": 9.24,
+      "secs": 68.12018823623657,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "gpsr",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 523,
+        "link_error": 14,
+        "no_route": 1
+      },
+      "mean_delay_ms": 9.36,
+      "secs": 68.60029292106628,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 1,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 15,
+        "queue_overflow": 513,
+        "link_error": 10
+      },
+      "mean_delay_ms": 11.8,
+      "secs": 69.07750940322876,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "spbp",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 1,
+        "queue_overflow": 529,
+        "link_error": 8
+      },
+      "mean_delay_ms": 9.24,
+      "secs": 79.41637992858887,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "dijkstra",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 11,
+        "no_route": 1,
+        "queue_overflow": 526
+      },
+      "mean_delay_ms": 8.72,
+      "secs": 79.7012038230896,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "gpsr",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 10,
+        "queue_overflow": 527,
+        "no_route": 1
+      },
+      "mean_delay_ms": 9.48,
+      "secs": 80.01244831085205,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "da_gpsr",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 8,
+        "no_route": 1,
+        "queue_overflow": 529
+      },
+      "mean_delay_ms": 10.88,
+      "secs": 80.03666400909424,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "backpressure",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 26,
+        "queue_overflow": 500,
+        "link_error": 12
+      },
+      "mean_delay_ms": 12.88,
+      "secs": 80.7357063293457,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "car",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 522,
+        "no_route": 1,
+        "link_error": 15
+      },
+      "mean_delay_ms": 9.32,
+      "secs": 80.70158195495605,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "dpp",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 18,
+        "queue_overflow": 504,
+        "link_error": 16
+      },
+      "mean_delay_ms": 15.08,
+      "secs": 80.90547943115234,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 2,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 22,
+        "no_route": 16,
+        "queue_overflow": 500
+      },
+      "mean_delay_ms": 11.0,
+      "secs": 81.7007737159729,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "gpsr",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 21,
+        "queue_overflow": 517
+      },
+      "mean_delay_ms": 8.96,
+      "secs": 65.8961889743805,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "dijkstra",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 520,
+        "link_error": 18
+      },
+      "mean_delay_ms": 8.88,
+      "secs": 66.116863489151,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "spbp",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 13,
+        "queue_overflow": 525
+      },
+      "mean_delay_ms": 8.56,
+      "secs": 65.83489346504211,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "da_gpsr",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 17,
+        "queue_overflow": 521
+      },
+      "mean_delay_ms": 9.84,
+      "secs": 65.93346786499023,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "car",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 18,
+        "queue_overflow": 520
+      },
+      "mean_delay_ms": 8.96,
+      "secs": 67.03890347480774,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "backpressure",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 58,
+        "link_error": 39,
+        "queue_overflow": 441
+      },
+      "mean_delay_ms": 16.84,
+      "secs": 67.73828268051147,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 34,
+        "queue_overflow": 282,
+        "no_route": 215,
+        "ttl_expired": 4,
+        "episode_end": 3
+      },
+      "mean_delay_ms": 11.32,
+      "secs": 75.70752429962158,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "dijkstra",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 24,
+        "queue_overflow": 1111,
+        "no_route": 3
+      },
+      "mean_delay_ms": 9.76,
+      "secs": 67.99702835083008,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "gpsr",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 21,
+        "queue_overflow": 1114,
+        "no_route": 3
+      },
+      "mean_delay_ms": 9.24,
+      "secs": 68.02482199668884,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "spbp",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1116,
+        "no_route": 3,
+        "link_error": 19
+      },
+      "mean_delay_ms": 9.6,
+      "secs": 68.11526441574097,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.05,
+      "seed": 3,
+      "teacher": "dpp",
+      "pdr": 0.08503401360544217,
+      "n_generated": 588,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 109,
+        "queue_overflow": 132,
+        "link_error": 175,
+        "ttl_expired": 6,
+        "episode_end": 116
+      },
+      "mean_delay_ms": 18.72,
+      "secs": 80.19566130638123,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "backpressure",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 33,
+        "no_route": 143,
+        "queue_overflow": 962
+      },
+      "mean_delay_ms": 10.44,
+      "secs": 68.49577784538269,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "da_gpsr",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 24,
+        "queue_overflow": 1110,
+        "no_route": 4
+      },
+      "mean_delay_ms": 10.36,
+      "secs": 68.73025751113892,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "car",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1095,
+        "no_route": 4,
+        "link_error": 39
+      },
+      "mean_delay_ms": 9.56,
+      "secs": 69.34544563293457,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "dpp",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 185,
+        "queue_overflow": 941,
+        "link_error": 12
+      },
+      "mean_delay_ms": 12.84,
+      "secs": 69.56215119361877,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 1,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1071,
+        "no_route": 27,
+        "link_error": 40
+      },
+      "mean_delay_ms": 9.92,
+      "secs": 69.61286282539368,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "dijkstra",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1121,
+        "no_route": 2,
+        "link_error": 15
+      },
+      "mean_delay_ms": 6.96,
+      "secs": 79.72644257545471,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "spbp",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1125,
+        "no_route": 2,
+        "link_error": 11
+      },
+      "mean_delay_ms": 7.04,
+      "secs": 79.72620558738708,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "gpsr",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1113,
+        "link_error": 23,
+        "no_route": 2
+      },
+      "mean_delay_ms": 7.32,
+      "secs": 80.52438449859619,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "dijkstra",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1112,
+        "link_error": 26
+      },
+      "mean_delay_ms": 8.56,
+      "secs": 67.42061924934387,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "backpressure",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 36,
+        "queue_overflow": 1069,
+        "link_error": 33
+      },
+      "mean_delay_ms": 12.88,
+      "secs": 81.42117595672607,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "gpsr",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1109,
+        "link_error": 29
+      },
+      "mean_delay_ms": 8.6,
+      "secs": 67.34996032714844,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "spbp",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1116,
+        "link_error": 22
+      },
+      "mean_delay_ms": 8.88,
+      "secs": 67.67877435684204,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "da_gpsr",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 33,
+        "queue_overflow": 1103,
+        "no_route": 2
+      },
+      "mean_delay_ms": 9.72,
+      "secs": 80.78887343406677,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "dpp",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 31,
+        "queue_overflow": 1090,
+        "link_error": 17
+      },
+      "mean_delay_ms": 15.24,
+      "secs": 80.89517068862915,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "da_gpsr",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1108,
+        "link_error": 30
+      },
+      "mean_delay_ms": 9.6,
+      "secs": 68.11024212837219,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "backpressure",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 118,
+        "link_error": 36,
+        "queue_overflow": 984
+      },
+      "mean_delay_ms": 21.08,
+      "secs": 69.5329897403717,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "car",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1096,
+        "link_error": 42
+      },
+      "mean_delay_ms": 8.6,
+      "secs": 68.34220862388611,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "car",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1102,
+        "link_error": 34,
+        "no_route": 2
+      },
+      "mean_delay_ms": 7.48,
+      "secs": 80.41550660133362,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "dpp",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 344,
+        "queue_overflow": 686,
+        "link_error": 92,
+        "ttl_expired": 4,
+        "episode_end": 12
+      },
+      "mean_delay_ms": 22.68,
+      "secs": 76.98610925674438,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 2,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1074,
+        "link_error": 33,
+        "no_route": 31
+      },
+      "mean_delay_ms": 7.48,
+      "secs": 82.37191987037659,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.1,
+      "seed": 3,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.04208754208754209,
+      "n_generated": 1188,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 853,
+        "link_error": 117,
+        "no_route": 148,
+        "ttl_expired": 8,
+        "episode_end": 12
+      },
+      "mean_delay_ms": 10.4,
+      "secs": 84.334468126297,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "gpsr",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 43,
+        "queue_overflow": 2862,
+        "no_route": 9
+      },
+      "mean_delay_ms": 9.96,
+      "secs": 70.1897222995758,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "dijkstra",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 57,
+        "queue_overflow": 2848,
+        "no_route": 9
+      },
+      "mean_delay_ms": 10.0,
+      "secs": 70.70779037475586,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "spbp",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2867,
+        "link_error": 38,
+        "no_route": 9
+      },
+      "mean_delay_ms": 9.88,
+      "secs": 70.22523379325867,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "backpressure",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 381,
+        "link_error": 54,
+        "queue_overflow": 2479
+      },
+      "mean_delay_ms": 10.6,
+      "secs": 71.98065996170044,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "da_gpsr",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2831,
+        "no_route": 11,
+        "link_error": 72
+      },
+      "mean_delay_ms": 11.84,
+      "secs": 71.2907509803772,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "dpp",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 470,
+        "queue_overflow": 2415,
+        "link_error": 29
+      },
+      "mean_delay_ms": 14.6,
+      "secs": 71.89543032646179,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "car",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2838,
+        "link_error": 65,
+        "no_route": 11
+      },
+      "mean_delay_ms": 10.16,
+      "secs": 71.31422233581543,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 1,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2766,
+        "no_route": 73,
+        "link_error": 75
+      },
+      "mean_delay_ms": 10.2,
+      "secs": 74.17494130134583,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "dijkstra",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2861,
+        "no_route": 7,
+        "link_error": 46
+      },
+      "mean_delay_ms": 8.84,
+      "secs": 81.73542284965515,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "gpsr",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2856,
+        "link_error": 50,
+        "no_route": 8
+      },
+      "mean_delay_ms": 9.12,
+      "secs": 82.12568068504333,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "spbp",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2854,
+        "link_error": 53,
+        "no_route": 7
+      },
+      "mean_delay_ms": 9.04,
+      "secs": 82.18296194076538,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "backpressure",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 80,
+        "queue_overflow": 2747,
+        "link_error": 87
+      },
+      "mean_delay_ms": 17.48,
+      "secs": 85.12658190727234,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "da_gpsr",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2840,
+        "link_error": 65,
+        "no_route": 9
+      },
+      "mean_delay_ms": 9.6,
+      "secs": 83.1046929359436,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "car",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2864,
+        "link_error": 41,
+        "no_route": 9
+      },
+      "mean_delay_ms": 9.32,
+      "secs": 81.98380851745605,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "dpp",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 76,
+        "queue_overflow": 2787,
+        "link_error": 51
+      },
+      "mean_delay_ms": 17.64,
+      "secs": 84.79945468902588,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 2,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2747,
+        "link_error": 98,
+        "no_route": 69
+      },
+      "mean_delay_ms": 10.04,
+      "secs": 88.04992771148682,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "dijkstra",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "link_error": 90,
+        "queue_overflow": 2824
+      },
+      "mean_delay_ms": 8.36,
+      "secs": 69.08490562438965,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "gpsr",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2818,
+        "link_error": 96
+      },
+      "mean_delay_ms": 8.4,
+      "secs": 69.94265699386597,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "spbp",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2830,
+        "link_error": 84
+      },
+      "mean_delay_ms": 8.64,
+      "secs": 69.66254091262817,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "da_gpsr",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2804,
+        "link_error": 110
+      },
+      "mean_delay_ms": 10.72,
+      "secs": 70.04941725730896,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "car",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 2839,
+        "link_error": 75
+      },
+      "mean_delay_ms": 8.48,
+      "secs": 70.23397874832153,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "dpp",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 795,
+        "queue_overflow": 1386,
+        "link_error": 655,
+        "ttl_expired": 8,
+        "episode_end": 70
+      },
+      "mean_delay_ms": 31.0,
+      "secs": 87.58773279190063,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "backpressure",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "no_route": 224,
+        "queue_overflow": 1332,
+        "link_error": 1280,
+        "ttl_expired": 3,
+        "episode_end": 75
+      },
+      "mean_delay_ms": 31.76,
+      "secs": 89.64461755752563,
+      "num_drones": 50
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 0.25,
+      "seed": 3,
+      "teacher": "spbp_lookahead",
+      "pdr": 0.016869095816464237,
+      "n_generated": 2964,
+      "n_delivered": 50,
+      "drop_reasons": {
+        "queue_overflow": 1523,
+        "link_error": 914,
+        "no_route": 405,
+        "ttl_expired": 4,
+        "episode_end": 68
+      },
+      "mean_delay_ms": 8.96,
+      "secs": 91.7665901184082,
+      "num_drones": 50
+    }
+  ]
+}

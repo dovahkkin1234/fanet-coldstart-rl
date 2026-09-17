@@ -43,7 +43,12 @@ from experiment_headroom import HeadroomSimulator, ROUTING_ADDRESSABLE
 from config_v2 import BASE, SCENARIOS, provenance
 
 # ── frozen constants, from the pre-registration ────────────────────────────
-PROBE_RATES = [0.02, 0.05, 0.10, 0.15, 0.25, 0.40]
+# CONGESTION WINDOW (v13). Per-FLOW rates. The pre-v12 grid
+# [0.02..0.40] is VOID: it topped out at 2.8 pkt/s across the whole network
+# against a 100 pkt/s per-node capacity, so it contained no congestion at all
+# and everything it measured was phantom occupancy from the delivery leak.
+# Measured onset ~rate 50 (350 p/s offered), peak ~60, collapse by ~100.
+PROBE_RATES = [20.0, 35.0, 50.0, 65.0, 80.0, 100.0, 120.0]
 ACTORS = ['spbp', 'spbp_ab_full', 'spbp_ab_noqueue', 'dijkstra', 'gpsr', 'random']
 PRIMARY_HI, PRIMARY_LO = 'spbp_ab_full', 'spbp_ab_noqueue'
 
@@ -60,9 +65,25 @@ def _run(job):
     sc, cfg, rate, seed, actor, base = job
     full = {**base, **cfg, 'packet_rate': rate, 'seed': seed, 'actor': actor}
     m = HeadroomSimulator(full).run()
+    # v13: refuse to measure on unfixed code. Without the v12 leak fix this
+    # probe would silently re-measure phantom congestion -- which is precisely
+    # how the void grid was produced the first time.
+    n_ph = m.get('n_phantom_slots', None)
+    if n_ph is None:
+        raise RuntimeError(
+            "n_phantom_slots missing -- apply_delivery_leak_fix_v12.py has NOT "
+            "been applied. The probe refuses to run: it would re-measure the "
+            "phantom congestion that voided the previous grid.")
+    if n_ph != 0:
+        raise RuntimeError(
+            f"{n_ph} phantom queue slot(s) in {sc} rate={rate} seed={seed}. "
+            f"The v12 leak (or a regression of it) is present; results would be "
+            f"meaningless.")
     addressable = sum(m['drops_routable'].get(c, 0) for c in ROUTING_ADDRESSABLE)
     return {
         'scenario': sc, 'rate': rate, 'seed': seed, 'actor': actor,
+        'n_phantom_slots': n_ph,
+        'offered_pps': m['n_generated'] / max(base['duration'] - base.get('drain_time', 0), 1),
         'pdr_routable': m['pdr_routable'], 'pdr_raw': m['pdr_predrain'],
         'n_routable': m['n_routable'], 'n_delivered': m['n_delivered'],
         'n_generated': m['n_generated'],
@@ -156,7 +177,8 @@ def analyse(rows, rates):
                 reasons.append(f'spbp-random={100*vs_random:.2f}pp<{100*MIN_VS_RANDOM:.0f}pp')
 
             cells.append(dict(
-                rate=rate, queue_value=qv, ci_lo=ci_lo, ci_hi=ci_hi,
+                rate=rate, offered_pps=mean_of('spbp', 'offered_pps'),
+                queue_value=qv, ci_lo=ci_lo, ci_hi=ci_hi,
                 consistency=consistency, band=band(qv, consistency),
                 carried=carried, offered=offered,
                 addressable=addressable, n_routable=n_routable,
@@ -240,15 +262,21 @@ def report(analysis):
         print('\n' + '=' * 100)
         print(f'  {sc}')
         print('=' * 100)
-        print(f"  {'rate':>6}{'queue value':>26}{'cons':>6}{'band':>8}{'carried':>10}"
-              f"{'offered':>9}{'addr':>8}{'spbp':>7}{'vs rnd':>8}{'n_rt':>7}  valid")
-        print('  ' + '-' * 104)
+        # v13: 'offered' is now offered pkt/s across the network (flows x rate),
+        # not the per-flow rate. flows = N//4, so the same per-flow rate is a
+        # very different load per scenario -- 550 p/s in very_dense vs 250 p/s
+        # in sparse_fast at rate 50. A single global grid may not place all four
+        # scenarios in their congestion window simultaneously.
+        print(f"  {'rate':>6}{'off p/s':>9}{'queue value':>26}{'cons':>6}{'band':>8}"
+              f"{'carried':>10}{'addr':>8}{'spbp':>7}{'vs rnd':>8}{'n_rt':>7}  valid")
+        print('  ' + '-' * 108)
         for c in a['cells']:
             ci = (f"{100*c['queue_value']:6.2f}pp "
                   f"[{100*c['ci_lo']:6.2f},{100*c['ci_hi']:6.2f}]"
                   if c['ci_lo'] == c['ci_lo'] else f"{100*c['queue_value']:6.2f}pp  [   n/a      ]")
             flag = 'yes' if c['valid'] else 'NO  ' + c['invalid_reason']
-            print(f"  {c['rate']:>6}{ci:>26}{c['consistency']:>6.1f}"
+            print(f"  {c['rate']:>6}{c.get('offered_pps', float('nan')):>9.1f}{ci:>26}"
+                  f"{c['consistency']:>6.1f}"
                   f"{c['band']:>8}{c['carried']:>10.2f}"
                   f"{c['offered']:>9.2f}{c['addressable']:>8.3f}{c['spbp_pdr']:>7.3f}"
                   f"{100*c['vs_random']:>7.1f}p{c['n_routable']:>7}  {flag}")
@@ -274,7 +302,16 @@ def main():
     ap.add_argument('--rates', type=float, nargs='+', default=PROBE_RATES)
     ap.add_argument('--seeds', type=int, nargs='+', default=[1, 2, 3, 4, 5])
     ap.add_argument('--actors', nargs='+', default=ACTORS)
-    ap.add_argument('--duration', type=float, default=1000.0)
+    # v13: 200 s, not 1000 s. Congestion onset is a steady-state property of
+    # instantaneous offered rate vs per-node capacity, so it should transfer to
+    # 1000 s -- but at rate 100 a 1000 s episode generates ~700k packets, which
+    # is prohibitively slow. --transfer verifies the assumption on a subset
+    # instead of trusting it.
+    ap.add_argument('--duration', type=float, default=200.0)
+    ap.add_argument('--transfer', action='store_true',
+                    help='DURATION-TRANSFER CHECK: after the main run, re-run '
+                         'the peak and onset cells at 1000 s and compare, to '
+                         'verify the window transfers to the dataset duration')
     ap.add_argument('--drain_time', type=float, default=BASE['drain_time'])
     ap.add_argument('--z_min', type=float, default=100)
     ap.add_argument('--z_max', type=float, default=300)
@@ -308,7 +345,7 @@ def main():
 
     if args.smoke:
         args.duration, args.z_min, args.z_max = BASE['duration'], BASE['z_min'], BASE['z_max']
-        args.rates = [0.5, 2.0, 4.0]
+        args.rates = [35.0, 50.0, 65.0]   # v13: smoke inside the real window
         args.seeds = [1, 2]
         args.scenarios = ['dense_slow', 'medium_slow']
         args.out = args.out.replace('.json', '_smoke.json')
