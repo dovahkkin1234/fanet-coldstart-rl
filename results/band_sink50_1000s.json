@@ -168,5 +168,12 @@
         "significant": true
       }
     }
+  },
+  "run_params": {
+    "duration": 1000.0,
+    "initial_energy": 8000.0,
+    "scenario": "sink_50",
+    "measure_seeds": 15,
+    "source": "recorded retroactively from the generating command line (v23); provenance block above reflects config_v2.BASE at run time, which is the parity reference, NOT this run"
   }
 }

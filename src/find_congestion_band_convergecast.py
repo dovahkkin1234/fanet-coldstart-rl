@@ -191,9 +191,20 @@ def self_tests(scenario_cfg, dur, rate, energy):
     d_hi = episode(scenario_cfg, dur, rate, 1, REFERENCE, energy)['n_delivered']
     drop = (d_lo - d_hi) / max(d_lo, 1)
     ok = drop <= NO_COLLAPSE_TOL
-    print(f"  S4 no delivery collapse         : {d_lo} -> {d_hi}  "
-          f"({100*drop:+.1f}%, tolerance {100*NO_COLLAPSE_TOL:.0f}%)  "
-          f"{'OK' if ok else '*** COLLAPSE ***'}")
+    # v24: direction-aware display. The old line printed e.g.
+    #   "(-64.6%, tolerance 10%)  OK"
+    # which reads as a badly violated threshold that passed anyway. It was
+    # actually correct -- a NEGATIVE drop means delivery ROSE with rate, which
+    # is not a collapse and rightly passes -- but the presentation invited the
+    # exact misreading a self-test exists to prevent.
+    if drop < 0:
+        print(f"  S4 no delivery collapse         : {d_lo} -> {d_hi}  "
+              f"(delivery ROSE {abs(100*drop):.1f}% -- not a collapse)  "
+              f"{'OK' if ok else '*** UNEXPECTED ***'}")
+    else:
+        print(f"  S4 no delivery collapse         : {d_lo} -> {d_hi}  "
+              f"(fell {100*drop:.1f}%, tolerance {100*NO_COLLAPSE_TOL:.0f}%)  "
+              f"{'OK' if ok else '*** COLLAPSE ***'}")
     if not ok:
         fails.append(f'S4 delivery collapsed by {100*drop:.1f}%')
     print('\n  ' + ('SELF-TESTS PASSED' if not fails else f'FAILED: {fails}'))
@@ -413,6 +424,14 @@ def main():
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     with open(args.out, 'w') as f:
         json.dump({'schema': 'congestion_band_convergecast_v1',
+                   'run_params': {'duration': args.duration,
+                                  'initial_energy': args.initial_energy,
+                                  'rates': args.rates,
+                                  'map_seeds': args.map_seeds,
+                                  'measure_seeds': args.measure_seeds,
+                                  'note': 'actual operating point of THIS run; '
+                                          'the provenance block below reports '
+                                          'config_v2.BASE, the parity reference'},
                    'scenario': args.scenario, 'duration': args.duration,
                    'initial_energy': args.initial_energy,
                    'criteria': {'elastic_lo': ELASTIC_LO, 'elastic_hi': ELASTIC_HI,

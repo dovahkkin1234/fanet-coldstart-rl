@@ -301,5 +301,14 @@
         "significant": true
       }
     }
+  },
+  "run_params": {
+    "duration": 1000.0,
+    "initial_energy": 8000.0,
+    "z_min": 100,
+    "z_max": 300,
+    "scenario": "dense_slow",
+    "measure_seeds": 15,
+    "source": "recorded retroactively from the generating command line (v23); provenance block above reflects config_v2.BASE at run time, which is the parity reference, NOT this run"
   }
 }
