@@ -67,21 +67,9 @@ CELLS = {
     'dense_slow':  ('suiteA', 'dense_slow',  [60.0, 80.0, 100.0]),
     'very_dense':  ('suiteA', 'very_dense',  [60.0, 80.0]),
     'medium_slow': ('suiteA', 'medium_slow', [40.0, 60.0, 80.0]),
-    # sparse_fast is INCLUDED but flagged: its two "usable" cells have
-    # elasticity 0.80/0.85, both pressed against the ELASTIC_HI=0.85 ceiling,
-    # while every other scenario's usable cells sit at 0.05-0.47. Its
-    # link_error is ~0.007 (near zero) against a PDR of ~0.30, so its dominant
-    # loss is neither link nor queue -- most likely route-unavailability,
-    # matching this scenario's original connectivity-limited characterisation.
-    # Its results are reported SEPARATELY in the verdict and are NOT used to
-    # set a per-cell oracle, because "which queue policy wins" is not a
-    # well-posed question in a cell whose losses are not queue-driven.
     'sparse_fast': ('suiteA', 'sparse_fast', [80.0, 100.0]),
     'sink_50':     ('convergecast', 'sink_50', [30.0]),
 }
-# Scenarios whose cells are reported but NOT used to set a per-cell oracle.
-QUALIFIED_SCENARIOS = {'sparse_fast'}
-
 DURATION = 1000.0
 INITIAL_ENERGY = 8000.0
 
@@ -214,7 +202,6 @@ def main():
         by_cell[(r['scenario'], r['rate'])][r['actor']][r['seed']] = r['pdr']
 
     cell_results, praw, tags = {}, [], []
-    qualified_notes = {}
     for key, per in by_cell.items():
         means = {t: sum(v.values()) / len(v) for t, v in per.items() if v}
         winner = max(means, key=means.get)
@@ -269,11 +256,7 @@ def main():
                      if c.get('significant') and c.get('delta', 0) >= REPLACE_MARGIN]
             if beats:
                 best = max(beats, key=lambda t: cr['comparisons'][t]['delta'])
-                if scenario in QUALIFIED_SCENARIOS:
-                    print(f'    [{scenario} is flagged -- reported, not used to set an oracle]')
-                    qualified_notes[key] = best
-                else:
-                    replacements[key] = best
+                replacements[key] = best
 
     print('\n' + '=' * 96)
     print('  VERDICT -- per-cell oracle recommendation')
@@ -286,13 +269,8 @@ def main():
         for (scenario, rate), teacher in replacements.items():
             print(f'    {scenario:<14} rate {rate:<6} -> {teacher}')
         untouched = [f'{s} rate {r}' for s, (_, _, rates) in CELLS.items()
-                     for r in rates if (s, r) not in replacements
-                     and s not in QUALIFIED_SCENARIOS]
+                     for r in rates if (s, r) not in replacements]
         print(f'  spbp stands in every other cell: {untouched}')
-    if qualified_notes:
-        print('\n  FLAGGED cells (reported only, no oracle set -- see CELLS comment):')
-        for (scenario, rate), teacher in qualified_notes.items():
-            print(f'    {scenario:<14} rate {rate:<6} best was {teacher}')
 
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     serializable = {f'{s}|{r}': v for (s, r), v in cell_results.items()}
