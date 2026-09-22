@@ -1,0 +1,209 @@
+{
+  "schema": "oracle_agreement_v1",
+  "oracles": [
+    "dijkstra",
+    "gpsr",
+    "da_gpsr"
+  ],
+  "duration": 1000.0,
+  "initial_energy": 8000.0,
+  "run_params": {
+    "duration": 1000.0,
+    "initial_energy": 8000.0,
+    "seeds": 1,
+    "max_log": 20000
+  },
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2"
+  },
+  "overall_agreement": 0.6490388888888889,
+  "rows": [
+    {
+      "scenario": "dense_slow",
+      "rate": 60.0,
+      "seed": 1,
+      "cell_oracle": "da_gpsr",
+      "n_decisions": 20000,
+      "agree_all3": 0.7469,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.7749,
+        "dijkstra|da_gpsr": 0.7572,
+        "gpsr|da_gpsr": 0.9474
+      },
+      "mean_degree": 10.7004,
+      "mean_occ": 0.008166000000000118,
+      "deg_min": 2,
+      "deg_max": 20,
+      "pdr": 0.7084391534391534,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "dense_slow",
+      "rate": 80.0,
+      "seed": 1,
+      "cell_oracle": "gpsr",
+      "n_decisions": 20000,
+      "agree_all3": 0.69515,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.7919,
+        "dijkstra|da_gpsr": 0.70685,
+        "gpsr|da_gpsr": 0.8661
+      },
+      "mean_degree": 9.976,
+      "mean_occ": 0.06482199999999927,
+      "deg_min": 2,
+      "deg_max": 19,
+      "pdr": 0.5779943108949789,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "dense_slow",
+      "rate": 100.0,
+      "seed": 1,
+      "cell_oracle": "gpsr",
+      "n_decisions": 20000,
+      "agree_all3": 0.64945,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.8014,
+        "dijkstra|da_gpsr": 0.67575,
+        "gpsr|da_gpsr": 0.7958
+      },
+      "mean_degree": 9.4771,
+      "mean_occ": 0.0739039999999979,
+      "deg_min": 2,
+      "deg_max": 19,
+      "pdr": 0.4988203344045322,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "medium_slow",
+      "rate": 40.0,
+      "seed": 1,
+      "cell_oracle": "dijkstra",
+      "n_decisions": 20000,
+      "agree_all3": 0.6521,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.8023,
+        "dijkstra|da_gpsr": 0.66365,
+        "gpsr|da_gpsr": 0.83
+      },
+      "mean_degree": 5.2997,
+      "mean_occ": 0.08871099999999765,
+      "deg_min": 1,
+      "deg_max": 11,
+      "pdr": 0.6462212249227073,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "medium_slow",
+      "rate": 60.0,
+      "seed": 1,
+      "cell_oracle": "dijkstra",
+      "n_decisions": 20000,
+      "agree_all3": 0.5915,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.78905,
+        "dijkstra|da_gpsr": 0.60645,
+        "gpsr|da_gpsr": 0.7698
+      },
+      "mean_degree": 4.844,
+      "mean_occ": 0.12510899999999678,
+      "deg_min": 1,
+      "deg_max": 10,
+      "pdr": 0.4976190476190476,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "medium_slow",
+      "rate": 80.0,
+      "seed": 1,
+      "cell_oracle": "dijkstra",
+      "n_decisions": 20000,
+      "agree_all3": 0.54355,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.75645,
+        "dijkstra|da_gpsr": 0.5617,
+        "gpsr|da_gpsr": 0.74625
+      },
+      "mean_degree": 4.51785,
+      "mean_occ": 0.14756499999999811,
+      "deg_min": 1,
+      "deg_max": 10,
+      "pdr": 0.4033420335393845,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "sink_50",
+      "rate": 30.0,
+      "seed": 1,
+      "cell_oracle": "da_gpsr",
+      "n_decisions": 20000,
+      "agree_all3": 0.723,
+      "agree_pair": {
+        "dijkstra|gpsr": 0.738,
+        "dijkstra|da_gpsr": 0.732,
+        "gpsr|da_gpsr": 0.96535
+      },
+      "mean_degree": 12.8619,
+      "mean_occ": 0.00021600000000000005,
+      "deg_min": 1,
+      "deg_max": 29,
+      "pdr": 0.6983670033670034,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "very_dense",
+      "rate": 60.0,
+      "seed": 1,
+      "cell_oracle": "da_gpsr",
+      "n_decisions": 20000,
+      "agree_all3": 0.6472,
+      "agree_pair": {
+        "gpsr|da_gpsr": 0.91825,
+        "dijkstra|gpsr": 0.6802,
+        "dijkstra|da_gpsr": 0.6604
+      },
+      "mean_degree": 19.86855,
+      "mean_occ": 0.018483000000000097,
+      "deg_min": 6,
+      "deg_max": 33,
+      "pdr": 0.5727793082338537,
+      "n_loop_override": null
+    },
+    {
+      "scenario": "very_dense",
+      "rate": 80.0,
+      "seed": 1,
+      "cell_oracle": "da_gpsr",
+      "n_decisions": 20000,
+      "agree_all3": 0.5925,
+      "agree_pair": {
+        "gpsr|da_gpsr": 0.8548,
+        "dijkstra|gpsr": 0.64785,
+        "dijkstra|da_gpsr": 0.62195
+      },
+      "mean_degree": 18.57245,
+      "mean_occ": 0.03233299999999975,
+      "deg_min": 6,
+      "deg_max": 33,
+      "pdr": 0.46074043634618894,
+      "n_loop_override": null
+    }
+  ]
+}

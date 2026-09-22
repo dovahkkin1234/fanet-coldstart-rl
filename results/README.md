@@ -75,3 +75,32 @@ reference** (40 s, rates `[0.5, 2.0, 4.0]`), *not* what the run used. Files
 processed by `fix_result_provenance_v23.py` carry a `run_params` block with the
 actual operating point. Files without one predate that fix; check the top-level
 `duration` field and the generating command.
+
+---
+
+## ORACLE PANELS (added after the 8-teacher panel series)
+
+All at 1000 s, battery 8000, 10 paired seeds. Full analysis in
+`docs/Panel_Results_Report.md`.
+
+| file | status | notes |
+|---|---|---|
+| `panel_oracle_generalized.json` | **SUPERSEDED — means valid, verdict not** | 9 teachers, 990 episodes. Per-cell means are sound. Its verdict used the incumbent-replacement rule, and the run did NOT apply the `sparse_fast` filter. Stores means only, no per-seed data. |
+| `panel_contenders_v2.json` | **SUPERSEDED — use `_corrected`** | 5 contenders, 550 episodes, first file with `per_seed_pdr`. Its printed `oracle_assignment` is WRONG in 4 of 9 cells: the v2 leading-group rule let underpowered, materially worse teachers into the tied group. |
+| `panel_contenders_v2_corrected.json` | CURRENT | Same data, oracle recomputed under the v25 rule (leading group = within 1 pp of top). No re-run. |
+| `panel_extended_v3.json` | **CURRENT — the oracle of record** | Merges `lq_dijkstra` + `etx_dijkstra` (220 new episodes) into the contender data. Equivalence control reproduced stored values exactly before merging. Carries the final `oracle_assignment`. |
+| `oracle_agreement.json` | CURRENT | Three oracles queried at every decision point on identical state. Overall 3-way agreement 0.649. Its override counter is null (wrong attribute name in the probe); the agreement figures are unaffected. |
+
+### Final oracle assignment (from `panel_extended_v3.json`)
+
+| cells | oracle |
+|---|---|
+| medium_slow @ 40, 60, 80 | dijkstra |
+| dense_slow @ 60 | da_gpsr |
+| dense_slow @ 80, 100 | gpsr |
+| very_dense @ 60, 80 | da_gpsr |
+| sink_50 @ 30 | da_gpsr |
+| sparse_fast @ 80, 100 | flagged — no oracle set |
+
+Whether the dataset uses these per-cell teachers or a single global teacher is
+an open design decision; see the report, section 7.
