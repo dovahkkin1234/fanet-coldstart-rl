@@ -1,4 +1,13 @@
 # FILE 2 — PRE-M5 EXECUTION PLAN
+
+> **PARTLY SUPERSEDED (2026-10-02).** For the dataset follow `docs/DATASET_V3_SPEC.md`;
+> for the overall order follow `docs/FANET_Full_Project_Report.md` §18. Superseded here:
+> the rate grids of §1.5 / §1.5.1 (void after v12; per-scenario band + anchor now),
+> the stride-10 patch of §2 (frames stride 1; packet-sampled steps; de-duplicated
+> contexts), the SP-BP oracle and D2's `+0.0645` SP-BP reference (oracle panels;
+> label teacher da_gpsr), and checkpoint-based mid-trajectory sampling as a dataset
+> feature. Still valid: the parity-gate-before-v8b ordering (§3) and the D1-D5 designs
+> (§9) subject to the restatements in the report's §19.2.
 ## What to do next, in order, with acceptance criteria
 
 **Project:** FANET Lifelong-RL Routing · **Repo:** `github.com/dovahkkin1234/fanet-coldstart-rl`

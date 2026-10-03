@@ -160,7 +160,7 @@ def resolve_mask(names):
 
 
 class PhaseB:
-    def __init__(self, data_dir, mask=None):
+    def __init__(self, data_dir, mask=None, accept_legacy=False, use_weights=False):
         self.frm = {k: v for k, v in np.load(
             os.path.join(data_dir, 'frames.npz')).items()}
         self.dec = {k: v for k, v in np.load(
@@ -171,7 +171,15 @@ class PhaseB:
         self.mask = resolve_mask(mask or [])
         self.mask_names = list(mask or [])
 
-        skew = F.assert_manifest_compatible(self.man, context='M4 training')
+        skew = F.assert_manifest_compatible(self.man, context='M4 training',
+                                            accept_legacy=accept_legacy)
+        # v26: the dataset's OWN schema version decides the feature semantics a
+        # model trained on it must be rolled out with (v5 snapshot, v6 live).
+        self.schema_version = int(self.man.get('feature_schema_version', 5))
+        self.use_weights = bool(use_weights)
+        if self.use_weights and 'weight' not in self.dec:
+            raise SystemExit('use_weights=True but decisions.npz has no weight column '
+                             '(export_phaseb_v3.py --weighting multiplicity writes it)')
         if skew:
             raise SystemExit(
                 "SCHEMA SKEW — refusing to train.\n  "
@@ -352,6 +360,8 @@ class PhaseB:
             cand_idx=cand_idx, cand_feat=cand_feat, cand_edge=cand_edge,
             cand_mask=cand_mask,
             label=torch.from_numpy(d['label'][ids].astype(np.int64)).to(device),
+            weight=(torch.from_numpy(d['weight'][ids].astype(np.float32)).to(device)
+                    if getattr(self, 'use_weights', False) else None),
             ids=ids)
 
 
@@ -392,6 +402,15 @@ def evaluate(model, ds, split, device, frames_per_batch):
         out[f'accuracy_contested_{b}'] = (
             float(correct[m & con].mean()) if (m & con).any() else float('nan'))
     out['n'] = int(len(correct))
+    # v26: frequency-weighted accuracy when the rows are de-duplicated contexts
+    # carrying their multiplicity (Dataset V3) -- comparable to per-decision
+    # accuracy on a raw dataset. Reported only; early stopping is unchanged.
+    if 'weight' in ds.dec:
+        w = ds.dec['weight'][ids].astype(np.float64)
+        out['accuracy_raw_w'] = float((correct * w).sum() / max(w.sum(), 1e-12))
+        out['accuracy_contested_w'] = (float((correct[con] * w[con]).sum()
+                                             / max(w[con].sum(), 1e-12))
+                                       if con.any() else float('nan'))
     return out
 
 
@@ -408,6 +427,7 @@ def train_one(ds, mixer, seed, device, dst_encoding='encoded', hp=None,
     opt = torch.optim.Adam(model.parameters(), lr=hp['lr'],
                            weight_decay=hp['weight_decay'])
     lossf = nn.CrossEntropyLoss()
+    lossf_w = nn.CrossEntropyLoss(reduction='none')   # v26 weighted path only
     rng = np.random.default_rng(seed)
     fs = list(ds.by_frame['train'])
     best, best_state, bad, epochs_run = -1.0, None, 0, 0
@@ -418,7 +438,11 @@ def train_one(ds, mixer, seed, device, dst_encoding='encoded', hp=None,
         for i in range(0, len(fs), hp['frames_per_batch']):
             bt = ds.batch('train', fs[i:i + hp['frames_per_batch']], device)
             logits = run_batch(model, bt)
-            loss = lossf(logits, bt['label'])
+            if bt.get('weight') is None:
+                loss = lossf(logits, bt['label'])     # unchanged, byte-identical
+            else:
+                w = bt['weight']
+                loss = (lossf_w(logits, bt['label']) * w).sum() / w.sum().clamp_min(1e-12)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), hp['grad_clip'])

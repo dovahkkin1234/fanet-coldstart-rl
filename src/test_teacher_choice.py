@@ -88,6 +88,27 @@ from routing_teachers import dijkstra_next_hop
 from simulator_v2 import FANETSimulatorV2, TTL
 from config_v2 import BASE, SCENARIOS
 from generate_dataset_v2 import canonical_candidates
+import inspect
+
+# v26 COMPATIBILITY. Everything in this test is feature schema v5 (frame-start
+# snapshot own queue): its data, its models and its rollouts. After the v26 patch
+# the live module is v6, so v5 semantics are requested explicitly; on a pre-v26
+# checkout these helpers fall back to the module defaults (which are v5).
+def _nc_v5(cfg):
+    if 'schema_version' in inspect.signature(F.norm_constants).parameters:
+        return F.norm_constants(cfg, schema_version=5)
+    return F.norm_constants(cfg)
+
+
+def _phaseb_v5(path, mask):
+    from train_supervised_v2 import PhaseB
+    if 'accept_legacy' in inspect.signature(PhaseB.__init__).parameters:
+        return PhaseB(path, mask=mask, accept_legacy=True)
+    return PhaseB(path, mask=mask)
+
+
+V5_QUERY_FEATURES = getattr(F, 'LEGACY_FEATURE_LISTS', {}).get(5, {}).get(
+    'query_features', F.QUERY_FEATURES)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # experiment definition
@@ -237,7 +258,7 @@ class TeacherSim(FANETSimulatorV2):
         self.rec_p = float(record_prob)
         self.ds_rng = np.random.default_rng(self.seed + 900_000)   # epsilon draws
         self.rec_rng = np.random.default_rng(self.seed + 700_000)  # recording only
-        self.nc = F.norm_constants(config)
+        self.nc = _nc_v5(config)
         self._fid = -1
         self._frames = {}
         self._used = set()
@@ -421,8 +442,8 @@ def _assemble(args, combos, seeds, out_dir):
     man = {
         'purpose': 'test_teacher_choice', 'combos': combos, 'seeds': list(seeds),
         'node_features': F.NODE_FEATURES, 'edge_features': F.EDGE_FEATURES,
-        'query_features': F.QUERY_FEATURES, 'candidate_features': F.CANDIDATE_FEATURES,
-        'feature_schema_version': F.FEATURE_SCHEMA_VERSION,
+        'query_features': V5_QUERY_FEATURES, 'candidate_features': F.CANDIDATE_FEATURES,
+        'feature_schema_version': 5,
         'local_horizon': F.LOCAL_HORIZON,
         'split_plan': {'train_seeds': [min(args.train_seeds), max(args.train_seeds)],
                        'val_seeds': [min(args.val_seeds), max(args.val_seeds)],
@@ -442,7 +463,7 @@ def _hp():
 
 def stage_train(args):
     import torch
-    from train_supervised_v2 import PhaseB, train_one, evaluate, MASK_PRESETS
+    from train_supervised_v2 import train_one, evaluate, MASK_PRESETS
     mask = MASK_PRESETS['hop']
     hp = _hp()
     if args.smoke:
@@ -452,7 +473,7 @@ def stage_train(args):
     for name, combos in STUDENTS.items():
         d = os.path.join(args.out, 'data', name)
         _assemble(args, combos, seeds_all, d)
-        ds = PhaseB(d, mask=mask)
+        ds = _phaseb_v5(d, mask)
         for ms in range(args.model_seeds):
             seed = 2000 + ms
             key = f'{name}:{seed}'
@@ -479,7 +500,7 @@ def stage_train(args):
     for scen, teacher in GEN_COMBOS:
         d = os.path.join(args.out, 'data', f'EVAL_{scen}_{teacher}')
         _assemble(args, [(scen, teacher)], list(args.val_seeds), d)
-        ds = PhaseB(d, mask=mask)
+        ds = _phaseb_v5(d, mask)
         for name in STUDENTS:
             for ms in range(args.model_seeds):
                 key = f'{name}:{2000+ms}|{scen}|{teacher}'
@@ -529,8 +550,10 @@ def _roll_job(job):
         from train_supervised_v2 import MASK_PRESETS
         if ckpt not in _MODEL_CACHE:
             _MODEL_CACHE[ckpt] = _load_model(ckpt, 'cpu')
-        sim = ModelActorSimulator(cfg, _MODEL_CACHE[ckpt], 'cpu',
-                                  mask=MASK_PRESETS['hop'])
+        kw = {'mask': MASK_PRESETS['hop']}
+        if 'schema_version' in inspect.signature(ModelActorSimulator.__init__).parameters:
+            kw['schema_version'] = 5
+        sim = ModelActorSimulator(cfg, _MODEL_CACHE[ckpt], 'cpu', **kw)
         m = sim.run()
     if m.get('n_phantom_slots', 0) != 0:
         raise RuntimeError('phantom queue slots -- v12 leak present')

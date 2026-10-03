@@ -438,7 +438,12 @@ At the old (leak-era) operating point the packet is dequeued before its decision
 | h | `ORACLE_TEACHER = 'spbp'  # G3: wins all 12 cells` — the comment is false, and editing the constant alone would silently mislabel everything, because the label is computed by the hard-wired `spbp_pick_restricted()` regardless | critical | — |
 | i | `load_bucket()` thresholds `≤0.5 / ≤2.0 / else` — every new rate (30–160) maps to `high` | high | — |
 
-### 7.6 The regenerated schema (specified, not implemented) — `M3.5_Dataset_Schema.md`
+### 7.6 The regenerated schema — superseded by `docs/DATASET_V3_SPEC.md` (implemented in v26)
+
+> The paragraph below is the pre-2026-10-02 plan. V3 changed: single da_gpsr label (no
+> `label_teacher`), schema v6, no `checkpoint_id`, `eps_fired` instead of the
+> `action != label` check, de-duplicated contexts + packet-sampled steps.
+
 
 Feature schema carries forward unchanged. Generation-time changes: save `action`, `drop_reason`, honest `hop_succeeded`; per-cell (or single global) oracle with a **generalised restricted picker per teacher** + drift pins; `label_teacher` (if per-cell); `behaviour_teacher` (70/30 behaviour mix); `checkpoint_id` (once checkpointing exists); scenario-relative `load_bucket`; live queue reads; stride 1; `run_params` and a new **`record_schema_version`** in the manifest (because `FEATURE_SCHEMA_VERSION` only covers the four feature lists, two structurally different datasets would otherwise both declare v5); a new **audit check for action consistency** (`behaviour_deviated == (action != label)` row-by-row, verified to fail on a broken variant); restate D2/D5 wording. Full list in §18.
 
@@ -637,7 +642,7 @@ Four experiments, **1,769 episodes**: the 9-teacher generalised panel (990) → 
 
 | parameter | parity reference (today's `BASE`) | **new operating point** | basis |
 |---|---|---|---|
-| duration | 40 s | **1000 s** | matches HCPMR / CQMR / IQMR; unblocks the `energy` feature (std 0.0205 at 40 s) and `estimated_link_lifetime` (60.4% at its cap because `LIFETIME_REF = 60 s` > 40 s) — **do not also change `LIFETIME_REF`** |
+| duration | 40 s | **1000 s** | matches HCPMR / CQMR / IQMR; unblocks the `energy` feature (std 0.0205 at 40 s). *Corrected 2026-10-02:* it does **not** unblock `estimated_link_lifetime` — 45–73% of edges sit at the 60 s cap at every time of a 1000 s episode, because the estimator returns the cap for any non-separating pair. `LIFETIME_REF` stays 60 |
 | altitude | 50–150 m | **100–300 m** | matches all three competitors; costs ~8% of density (thin-slab geometry) [COMPUTED] |
 | drain | 10 s | 10 s | a 2–3 hop packet completes in well under a second |
 | battery | 100 | **8000** | smallest battery that opens a congestion window at 1000 s [MEASURED] |
@@ -647,6 +652,8 @@ Four experiments, **1,769 episodes**: the 9-teacher generalised panel (990) → 
 **Density at span 200** [COMPUTED]: very_dense 15.75 · dense_slow 7.95 · medium_slow 3.87 · sparse_fast 2.21 neighbours. **Caveat for the paper:** span 200 against 2R = 500–600 m is still slab-like (ratio 0.33–0.40) — it matches the literature, it does not make connectivity genuinely 3-D.
 
 ### 11.2 Usable bands at 1000 s / battery 8000 [MEASURED, 15 paired seeds — `results/band_*_1000s.json`]
+
+> Altitude 100–300 m for the four Suite A scenarios; **sink_50's band was measured at 50–150 m** (the convergecast band script had no altitude flags — added in v26). Re-measure it before Dataset V3 uses it (DATASET_V3_SPEC §2).
 
 **Phase 1 — elasticity sweep (bold = usable):**
 
@@ -690,7 +697,7 @@ Energy share 0.000 and zero dead nodes in every usable cell.
 
 ## 12. The oracle panels and the revised understanding of congestion-awareness
 
-All at 1000 s, battery 8000, altitude 100–300, **10 paired seeds per cell** (every teacher faces byte-identical traffic — verified by self-test S3). Cells: medium_slow 40/60/80, dense_slow 60/80/100, very_dense 60/80, sink_50 30 (**9 oracle-setting cells**) + sparse_fast 80/100 (**flagged**, reported only). Full report: `docs/Panel_Results_Report.md`.
+All at 1000 s, battery 8000, **altitude 50–150 m** (config_v2.BASE: the panel scripts set duration and battery but never altitude — corrected 2026-10-02; the bands that chose these rates ran at 100–300 m, except sink_50), **10 paired seeds per cell** (every teacher faces byte-identical traffic — verified by self-test S3). Cells: medium_slow 40/60/80, dense_slow 60/80/100, very_dense 60/80, sink_50 30 (**9 oracle-setting cells**) + sparse_fast 80/100 (**flagged**, reported only). Full report: `docs/Panel_Results_Report.md`.
 
 ### 12.1 Experiment 1 — 9-teacher generalised panel (990 episodes, ~20.4 h)
 
@@ -969,7 +976,12 @@ Ordered roughly by how much they matter to the thesis. None of these is started 
 
 ## 17. Open decisions that need your call
 
-### 17.1 One global teacher, or per-cell teachers? (you are researching this)
+### 17.1 One global teacher, or per-cell teachers? — **DECIDED 2026-10-01: single global da_gpsr**
+
+> Teacher-choice test, pre-registered verdict SINGLE da_gpsr: dijkstra labels are not
+> learnable locally (student −3.97 pp vs a da_gpsr student in medium_slow), mixing
+> teachers did not hurt the dense cells, a da_gpsr student matches its teacher. The
+> analysis below is the reasoning before the test. See DATASET_V3_SPEC §0-§1.
 
 **What is at stake.** The label is what M4 imitates, so the choice sets the warmstart's prior — and you have said warmstart quality must not be compromised, because errors propagate into the GNN and are amplified by RL.
 

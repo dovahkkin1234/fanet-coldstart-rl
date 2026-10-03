@@ -55,11 +55,15 @@ class ModelActorSimulator(FANETSimulatorV2):
     queue admission, energy accounting, drop taxonomy -- runs unchanged.
     """
 
-    def __init__(self, config, model, device, mask=None):
+    def __init__(self, config, model, device, mask=None, schema_version=None):
         super().__init__(config)
         self.model = model
         self.device = device
-        self.nc = F.norm_constants(config)
+        # v26: feature SEMANTICS follow the data the model was trained on --
+        # v5 = frame-start snapshot own queue, v6 = live own queue.
+        self.schema_version = int(F.FEATURE_SCHEMA_VERSION if schema_version is None
+                                  else schema_version)
+        self.nc = F.norm_constants(config, schema_version=self.schema_version)
         # Resolved ONCE, at construction: {block: [column indices]}. resolve_mask
         # raises on an unknown feature name, so a typo fails here rather than
         # silently masking nothing.
@@ -131,8 +135,10 @@ class ModelActorSimulator(FANETSimulatorV2):
 
         # n_inflight / net_occ are recomputed from G inside extract_decision
         # whenever LOCAL_HORIZON is set, so the passed values are unused there.
-        qf, cf = F.extract_decision(G, pkt, cands, self.nc, h_map, 0.0, 0.0,
-                                    ttl_const=TTL)
+        qf, cf = F.extract_decision(
+            G, pkt, cands, self.nc, h_map, 0.0, 0.0, ttl_const=TTL,
+            own_queue_occ=(self.queues[pkt.current].occupancy
+                           if self.schema_version >= 6 else None))
         # Query and candidate blocks. Masking the query block alone would leave
         # the candidate block live and the ablation would be half-applied.
         for _c in self.mask.get('query', []):
@@ -156,7 +162,7 @@ class ModelActorSimulator(FANETSimulatorV2):
         return cands[int(logits.argmax(-1).item())]
 
 
-def assert_mask_applied(mask_names, device='cpu'):
+def assert_mask_applied(mask_names, device='cpu', schema_version=None):
     """Build one real frame and one real decision; assert every masked column
     is exactly zero in all four blocks.
 
@@ -171,7 +177,8 @@ def assert_mask_applied(mask_names, device='cpu'):
     import numpy as _np
     scen, cfg = next(iter(SCENARIOS.items()))
     sim = ModelActorSimulator({**BASE, **cfg, 'packet_rate': 2.0, 'seed': 999},
-                              model=None, device=device, mask=mask_names)
+                              model=None, device=device, mask=mask_names,
+                              schema_version=schema_version)
     G = sim._build_graph()
     _ids, nf, ei, ef = F.extract_frame(G, sim.nc)
     for _c in sim.mask.get('node', []):
@@ -192,8 +199,10 @@ def assert_mask_applied(mask_names, device='cpu'):
         class _P:
             pass
         p = _P(); p.current, p.dst, p.hops, p.path = cur, dst, 0, [cur]
-        qf, cf = F.extract_decision(G, p, cands, sim.nc, h_map, 0.0, 0.0,
-                                    ttl_const=TTL)
+        qf, cf = F.extract_decision(
+            G, p, cands, sim.nc, h_map, 0.0, 0.0, ttl_const=TTL,
+            own_queue_occ=(sim.queues[cur].occupancy
+                           if sim.schema_version >= 6 else None))
         for _c in sim.mask.get('query', []):
             qf[_c] = 0.0
         for _c in sim.mask.get('cand', []):
@@ -226,12 +235,13 @@ def episode_grid(seeds, heldout='medium_slow'):
 
 
 def run_episode(cfg, scen_cfg, rate, seed, actor, model=None, device='cpu',
-                mask=None):
+                mask=None, schema_version=None):
     config = {**BASE, **scen_cfg, 'packet_rate': rate, 'seed': seed}
     if model is None:
         config['actor'] = actor
         return FANETSimulatorV2(config).run()
-    sim = ModelActorSimulator(config, model, device, mask=mask)
+    sim = ModelActorSimulator(config, model, device, mask=mask,
+                              schema_version=schema_version)
     m = sim.run()
     m['_n_decisions'] = sim.n_decisions
     m['_n_no_candidate'] = sim.n_no_candidate
@@ -306,8 +316,9 @@ def main():
     resfile = os.path.join(args.out, f'rollout{_sfx}.json')
     res = json.load(open(resfile)) if os.path.isfile(resfile) else {}
 
-    ds = PhaseB(args.data, mask=mask_names)
-    assert_mask_applied(mask_names, args.device)
+    # v26: this legacy G4 script reads the v5 (Dataset V2) data deliberately
+    ds = PhaseB(args.data, mask=mask_names, accept_legacy=True)
+    assert_mask_applied(mask_names, args.device, schema_version=ds.schema_version)
     grid = episode_grid(args.episode_seeds)
     print('=' * 78)
     print('  G4 CHECK 4 — ROLLOUT PDR vs SP-BP  (the decisive gate)')
@@ -347,13 +358,14 @@ def main():
             ckpt = os.path.join(args.out, f'{mixer}_{seed}{_sfx}.pt')
             torch.save({'state_dict': model.state_dict(), 'mixer': mixer,
                         'seed': seed, 'val_contested': val_best,
-                        'schema': F.FEATURE_SCHEMA_VERSION,
+                        'schema': ds.schema_version,
                         'mask': mask_names,      # M5 must load with this mask
                         'hp': HP}, ckpt)
             pdr = {}
             for scen, cfg, rate, s, held in grid:
                 m = run_episode(cfg, cfg, rate, s, None, model, args.device,
-                                mask=mask_names)
+                                mask=mask_names,
+                                schema_version=ds.schema_version)
                 pdr[f'{scen}|{rate}|{s}'] = float(m['network_pdr'])
             res[key] = pdr
             json.dump(res, open(resfile, 'w'), indent=2)
@@ -374,7 +386,8 @@ def main():
             got = {}
             for scen, cfg, rate, s, held in grid:
                 m = run_episode(cfg, cfg, rate, s, None, model, args.device,
-                                mask=mask_names)
+                                mask=mask_names,
+                                schema_version=ds.schema_version)
                 got[f'{scen}|{rate}|{s}'] = float(m['network_pdr'])
             diffs = [abs(got[c] - res[key][c]) for c in res[key]]
             # MAX ALONE IS NOT ENOUGH. check 4's verdict is a MEAN over 48

@@ -123,7 +123,8 @@ def main():
     # plausible agreement rate. This auditor exists precisely because "every
     # gate in this project has passed at least once while a real defect was
     # still present"; skew is the way it would pass while reading noise.
-    _skew = F.assert_manifest_compatible(man, context='audit')
+    _skew = F.assert_manifest_compatible(man, context='audit', accept_legacy=True)
+    QF_NAMES = list(man.get('query_features', F.QUERY_FEATURES))   # v26: dataset's own names
     if _skew:
         print("\n" + "=" * 78)
         print("  AUDIT ABORTED — DATASET/MODULE SCHEMA SKEW")
@@ -334,7 +335,7 @@ def main():
     print("  D. FEATURE DISTRIBUTIONS")
     print("-" * 78)
     bad_n = col_report('node (frame-level)', nfs, F.NODE_FEATURES)
-    bad_q = col_report('query (per-decision)', qf, F.QUERY_FEATURES)
+    bad_q = col_report('query (per-decision)', qf, QF_NAMES)
     bad_c = col_report('candidate', cf, F.CANDIDATE_FEATURES)
     results['D'] = not (bad_n or bad_q or bad_c)
 
@@ -406,7 +407,7 @@ def main():
     print("\n" + "-" * 78)
     print("  H. PER-REGIME FEATURE BEHAVIOUR (global means can hide real signal)")
     print("-" * 78)
-    q_cols = {nm: j for j, nm in enumerate(F.QUERY_FEATURES)}
+    q_cols = {nm: j for j, nm in enumerate(QF_NAMES)}
     watch_q = [c for c in ('current_queue_occupancy', 'network_mean_occupancy',
                            'n_inflight', 'hop_distance_to_dst') if c in q_cols]
     scen_u = sorted(set(scen.tolist()))
@@ -461,10 +462,11 @@ def main():
             print("      -> REGIME-DEPENDENT. The low global mean was hiding real")
             print("         variation; keep this feature.")
         else:
-            print("      -> weakly regime-dependent at this episode length. Note")
-            print("         that the packet is dequeued BEFORE the decision is")
-            print("         recorded, so this measures OTHER packets waiting at the")
-            print("         current node, not the packet being routed.")
+            print("      -> weakly regime-dependent at this episode length. CORRECTED")
+            print("         (v26): the near-zero own-queue values are caused by")
+            print("         _build_graph stamping queue_occupancy at FRAME START,")
+            print("         before that frame's traffic exists -- not by the dequeue")
+            print("         order. Dataset V3 (schema v6) reads the own queue live.")
 
     # ---------- verdict ----------
     print("\n" + "=" * 78)

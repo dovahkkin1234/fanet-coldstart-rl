@@ -1,5 +1,10 @@
 # Dataset V2 — Master Specification
 
+> **SUPERSEDED (2026-10-02) by `docs/DATASET_V3_SPEC.md`.** Kept as history. Its global
+> rate grid was voided by the v12 leak fix, its SP-BP oracle was displaced in all 9
+> oracle cells, and its action-consistency check (R-23) would fail on correct data.
+> DATASET_V3_SPEC §11 lists every statement here that no longer holds.
+
 **Status: DESIGN, pre-patch.** Nothing here is implemented yet. This document exists so
 the regeneration is designed once, against the requirements of every phase that will
 consume it, rather than patched reactively after each phase discovers what it lacks.

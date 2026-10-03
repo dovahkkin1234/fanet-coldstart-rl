@@ -1,4 +1,11 @@
 # FILE 1 — APPROACH 2 RECORD: M3 → M4 COMPLETE
+
+> **Corrections (2026-10-02).** SP-BP is no longer the oracle (displaced in all 9
+> oracle cells; Dataset V3 labels with da_gpsr). The statement that the
+> `estimated_link_lifetime` saturation (60.4% at the 60 s cap) is a 40 s-episode
+> artifact is withdrawn: 45-73% of edges sit at the cap at every time of a 1000 s
+> episode because the estimator returns the cap for any non-separating pair.
+> Current record: `docs/FANET_Full_Project_Report.md`; dataset: `docs/DATASET_V3_SPEC.md`.
 ## What was built, what was measured, what was learned
 
 **Project:** FANET Lifelong-RL Routing · Shirish Giroti (CS23B2041), IIITDM Kancheepuram

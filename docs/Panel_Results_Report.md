@@ -34,7 +34,7 @@ All panels ran at the operating point established by the earlier band-search and
 |---|---|---|
 | Episode duration | 1,000 s | matches published comparators; long enough for energy dynamics |
 | Initial battery | 8,000 | smallest value at which long episodes and real congestion coexist |
-| Altitude band | 100–300 m | matches published comparators |
+| Altitude band | **50–150 m** — config_v2.BASE (the panel scripts set duration and battery, never altitude; corrected 2026-10-02). The band search that chose the rates ran at 100–300 m, except sink_50 | the dataset operating point is 100–300 m |
 | Seeds per cell | 10, paired | every teacher faces byte-identical traffic |
 
 ### 2.2 The cells

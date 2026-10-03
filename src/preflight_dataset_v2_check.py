@@ -222,7 +222,8 @@ def main():
     dec, frm, man = load(args.data)
 
     # ---- 0. schema compatibility (runs FIRST, aborts on failure) ----
-    skew = F.assert_manifest_compatible(man, context='G3.5')
+    skew = F.assert_manifest_compatible(man, context='G3.5', accept_legacy=True)
+    QF_NAMES = list(man.get('query_features', F.QUERY_FEATURES))   # v26: dataset's own names
     if skew:
         print("\n" + "=" * 78)
         print("  GATE G3.5 — ABORTED BEFORE ANY CHECK")
@@ -304,7 +305,7 @@ def main():
     nf_std = sample.std(axis=0)
     dead_node = [F.NODE_FEATURES[i] for i, s in enumerate(nf_std) if s < 1e-9]
     qf_std = qf.std(axis=0)
-    dead_query = [F.QUERY_FEATURES[i] for i, s in enumerate(qf_std) if s < 1e-9]
+    dead_query = [QF_NAMES[i] for i, s in enumerate(qf_std) if s < 1e-9]
     c6 = nf_finite and not dead_node and not dead_query
 
     # ---- 7. reproducibility ----
@@ -328,7 +329,7 @@ def main():
     for _bn, _arr, _names in (
             ('node', frm['node_feat_flat'], F.NODE_FEATURES),
             ('edge', frm['edge_feat_flat'], F.EDGE_FEATURES),
-            ('query', qf, F.QUERY_FEATURES),
+            ('query', qf, QF_NAMES),
             ('candidate', dec['cand_feat_flat'], F.CANDIDATE_FEATURES)):
         _o, _l = redundancy_report(_bn, _arr, _names)
         red_offenders += _o
@@ -383,7 +384,7 @@ def main():
     for _bn, _arr, _names in (
             ('node', frm['node_feat_flat'], F.NODE_FEATURES),
             ('edge', frm['edge_feat_flat'], F.EDGE_FEATURES),
-            ('query', qf, F.QUERY_FEATURES),
+            ('query', qf, QF_NAMES),
             ('candidate', dec['cand_feat_flat'], F.CANDIDATE_FEATURES)):
         sat_lines += saturation_report(_bn, _arr, _names)
     print(f"    saturation (non-binary columns >= "

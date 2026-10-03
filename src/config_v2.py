@@ -130,3 +130,101 @@ def provenance():
             'interference_on': BASE['interference_on'],
             'rates': list(RATES), 'scenarios': sorted(SCENARIOS),
             'config_module': 'config_v2'}
+
+
+# ── v26: DATASET V3 operating point and grid ───────────────────────────────
+# BASE and RATES above stay the 40 s / 50-150 m PARITY REFERENCE until v8b
+# (decision D-12). The dataset is generated at the measured operating point
+# EXPLICITLY, through dataset_episode_config(), so the dataset never depends on
+# BASE having moved and moving BASE never silently changes the dataset.
+# docs/DATASET_V3_SPEC.md is the specification for everything below.
+OPERATING_POINT = dict(z_min=100, z_max=300, duration=1000.0, drain_time=10.0,
+                       interference_on=True, initial_energy=8000.0)
+
+# Per-scenario grid (decision 2026-10-02: usable band + one low-load anchor).
+#   band   = usable rates at 1000 s / battery 8000 / 100-300 m under the band
+#            search's reference actor spbp_ab_noqueue (results/band_*_1000s.json,
+#            criteria elasticity 0.05-0.85, q_ovf >= 0.02, energy <= 0.05).
+#            The band is a property of the LOAD, measured with a fixed reference
+#            policy; it is deliberately NOT re-defined under the dataset's own
+#            behaviour policy (that would let a better policy move the band).
+#   anchor = the lowest rate of that scenario's band sweep: below the band on
+#            purpose, for the low-vs-high load contrast.
+# Buckets are scenario-RELATIVE: anchor -> 'low', top band rate -> 'high',
+# other band rates -> 'medium'. Never compare bucket labels with pre-v26 results
+# (those used absolute thresholds 0.5 / 2.0 on the old grid).
+# sink_50's band file was measured at 50-150 m (BASE); verify_dataset_grid_v3
+# marks it UNVERIFIED until it is re-measured at 100-300 m, and the generator
+# refuses unverified cells unless explicitly allowed.
+DATASET_GRID = {
+    'dense_slow':  {'suite': 'A', 'anchor': [40.0], 'band': [60.0, 80.0, 100.0]},
+    'very_dense':  {'suite': 'A', 'anchor': [40.0], 'band': [60.0, 80.0]},
+    'medium_slow': {'suite': 'A', 'anchor': [30.0], 'band': [40.0, 60.0, 80.0]},
+    'sparse_fast': {'suite': 'A', 'anchor': [40.0], 'band': [80.0, 100.0]},
+    'sink_50':     {'suite': 'C', 'anchor': [20.0], 'band': [30.0]},
+}
+DATASET_SEEDS = list(range(101, 151))
+DATASET_SPLITS = {'train': (101, 135), 'val': (136, 142), 'test': (143, 150)}
+GENERALISATION_SCENARIO = 'medium_slow'
+
+
+def dataset_rates(scenario):
+    g = DATASET_GRID[scenario]
+    return sorted(g['anchor'] + g['band'])
+
+
+def dataset_cells(scenarios=None):
+    """[(scenario, rate)] in a fixed, documented order."""
+    out = []
+    for sc in DATASET_GRID:
+        if scenarios is None or sc in scenarios:
+            out += [(sc, r) for r in dataset_rates(sc)]
+    return out
+
+
+def rate_role(scenario, rate):
+    g = DATASET_GRID[scenario]
+    if float(rate) in g['anchor']:
+        return 'anchor'
+    if float(rate) in g['band']:
+        return 'band'
+    raise KeyError(f'{scenario}@{rate} is not in DATASET_GRID')
+
+
+def rate_index(scenario, rate):
+    return dataset_rates(scenario).index(float(rate))
+
+
+def load_bucket_rel(scenario, rate):
+    """Scenario-relative load bucket: 'low' / 'medium' / 'high'."""
+    if rate_role(scenario, rate) == 'anchor':
+        return 'low'
+    return 'high' if float(rate) == max(DATASET_GRID[scenario]['band']) else 'medium'
+
+
+def split_of_seed(seed):
+    for name, (lo, hi) in DATASET_SPLITS.items():
+        if lo <= int(seed) <= hi:
+            return name
+    raise KeyError(f'seed {seed} belongs to no dataset split {DATASET_SPLITS}')
+
+
+def dataset_scenario_cfg(scenario):
+    suite = 'C' if DATASET_GRID[scenario]['suite'] == 'C' else 'A'
+    return get_suite(suite)[scenario]
+
+
+def dataset_episode_config(scenario, rate, seed, **over):
+    """Full episode config at the DATASET operating point (not BASE)."""
+    return {**BASE, **OPERATING_POINT, **dataset_scenario_cfg(scenario),
+            'packet_rate': float(rate), 'seed': int(seed), **over}
+
+
+def dataset_provenance():
+    return {'operating_point': dict(OPERATING_POINT),
+            'grid': {k: dict(v) for k, v in DATASET_GRID.items()},
+            'seeds': [DATASET_SEEDS[0], DATASET_SEEDS[-1]],
+            'splits': {k: list(v) for k, v in DATASET_SPLITS.items()},
+            'generalisation_scenario': GENERALISATION_SCENARIO,
+            'parity_reference_base': dict(BASE),
+            'config_module': 'config_v2'}

@@ -99,7 +99,7 @@ EDGE_FEATURES = [
 QUERY_FEATURES = [
     'ttl_left',
     'dist_to_dest',
-    'current_queue_occupancy',
+    'own_queue_live',          # v6 -- v5 called it 'current_queue_occupancy'
     'neigh_buffered_packets',
     'neigh_mean_occupancy',
     'hop_distance_to_dst',
@@ -127,6 +127,12 @@ CANDIDATE_FEATURES = [
     'cand_reachable',      # candidate lies in the destination's component
 ]
 # ADDED 'cand_reachable'. Be honest about what it does and does not do.
+#
+# v6 NOTE: the paragraph below was written for SP-BP labels. Dataset V3
+# labels with da_gpsr, which is geographic and DOES pick unreachable
+# candidates (measured: every decision whose destination is unreachable --
+# 10.6% in medium_slow@60, 70% in sparse_fast@100). The column's purpose,
+# ablatability, is unchanged.
 #
 # It adds NO INFORMATION the model lacked. SP-BP excludes unreachable
 # candidates, so the label never points at one and the model could learn
@@ -195,11 +201,43 @@ LOCAL_HORIZON = 2
 # reports the mass at each column's max precisely so this is noticed rather
 # than rediscovered.
 BUFFERED_REF = 500.0
+# v6 (Dataset V3): the 500 above was sized on PRE-v12 data, in which
+# delivered packets were never released from destination queues (88.4% of
+# recorded drops were phantom), so the 2-hop buffered counts were inflated.
+# Post-fix, at the new operating point (1000 s, 100-300 m, battery 8000,
+# da_gpsr actor, top band rate of every scenario) the raw maximum is
+# 209 buffered packets (medium_slow@80; p99.9 at most 171 over the
+# top band rate of all five scenarios, one 1000 s seed each) -- 500 used at most 42% of the
+# feature's range. Sized like before (no clipping at the observed maximum),
+# with ~40% headroom because 800 episodes will reach further into the tail than
+# five; G3.5 v3's saturation diagnostic re-checks it on
+# the real dataset. v5 data keeps 500 (norm_constants(..., schema_version=5)).
+BUFFERED_REF_V6 = 300.0
 
 # Bumped whenever the four feature lists change. Persisted in manifest.json and
 # asserted by both checkers, so a checker can never resolve feature names
 # against a module that disagrees with the dataset it is reading.
-FEATURE_SCHEMA_VERSION = 5
+FEATURE_SCHEMA_VERSION = 6
+# v6 (Dataset V3, decision 2026-10-02). Two changes, both semantic:
+#   * query column 2 is the deciding node's OWN queue read LIVE at decision
+#     time (excluding the packet being forwarded) and renamed own_queue_live.
+#     v5's current_queue_occupancy was the frame-start snapshot: a byte-for-
+#     byte copy of node_feat[current].queue_occupancy, non-empty in 6-36% of
+#     decisions against 68-89% live. Neighbour and 2-hop queue signals stay
+#     the frame-start snapshot -- what the da_gpsr label reads, and what a
+#     real node learns about its neighbours by beacon.
+#   * neigh_buffered_packets is normalised by BUFFERED_REF_V6.
+# The name changes with the semantics so a v5 model can never be fed v6
+# columns silently; assert_manifest_compatible refuses v5 data unless the
+# reader passes accept_legacy=True and then uses v5 semantics itself.
+QUERY_FEATURES_V5 = ['ttl_left', 'dist_to_dest', 'current_queue_occupancy',
+                     'neigh_buffered_packets', 'neigh_mean_occupancy',
+                     'hop_distance_to_dst']
+LEGACY_FEATURE_LISTS = {5: {'node_features': list(NODE_FEATURES),
+                            'edge_features': list(EDGE_FEATURES),
+                            'query_features': list(QUERY_FEATURES_V5),
+                            'candidate_features': list(CANDIDATE_FEATURES)}}
+SUPPORTED_SCHEMA_VERSIONS = (5, 6)
 
 
 def _assert_schema_sane():
@@ -221,8 +259,15 @@ def _assert_schema_sane():
 _assert_schema_sane()
 
 
-def norm_constants(cfg):
-    """Per-scenario normalisation constants. Persist these with the dataset."""
+def norm_constants(cfg, schema_version=None):
+    """Per-scenario normalisation constants. Persist these with the dataset.
+
+    schema_version selects the feature SEMANTICS (v26): None = this module's
+    FEATURE_SCHEMA_VERSION; 5 = legacy (snapshot own queue, BUFFERED_REF 500).
+    The returned 'schema_version' is what extract_decision obeys."""
+    ver = int(FEATURE_SCHEMA_VERSION if schema_version is None else schema_version)
+    if ver not in SUPPORTED_SCHEMA_VERSIONS:
+        raise ValueError(f'feature schema v{ver} not supported: {SUPPORTED_SCHEMA_VERSIONS}')
     return {
         'area_x': float(cfg['area_x']),
         'area_y': float(cfg['area_y']),
@@ -242,7 +287,7 @@ def norm_constants(cfg):
         'ttl': float(cfg.get('ttl', TTL_REF)),
         'lifetime_ref': float(cfg.get('lifetime_ref', LIFETIME_REF)),
         'hop_cap': HOP_CAP,
-        'buffered_ref': BUFFERED_REF,
+        'buffered_ref': BUFFERED_REF if ver < 6 else BUFFERED_REF_V6,
         # Degree normaliser. Was max(N-1, 1) read off the live graph and never
         # persisted, so the persist-and-reuse-unchanged guarantee did not cover
         # it. Same value, now auditable. Note it makes normalised degree
@@ -253,7 +298,7 @@ def norm_constants(cfg):
         'degree_ref': float(max(int(cfg['num_drones']) - 1, 1)),
         # None = whole-network aggregation (controller-assisted).
         'local_horizon': LOCAL_HORIZON,
-        'schema_version': FEATURE_SCHEMA_VERSION,
+        'schema_version': ver,
     }
 
 
@@ -313,7 +358,7 @@ MANIFEST_FEATURE_KEYS = (
 )
 
 
-def assert_manifest_compatible(man, context=''):
+def assert_manifest_compatible(man, context='', accept_legacy=False):
     """Fail loudly if a dataset's persisted feature lists disagree with THIS module.
 
     Every feature lookup in both checkers is name-based
@@ -334,6 +379,13 @@ def assert_manifest_compatible(man, context=''):
     problems = []
     live_ver = FEATURE_SCHEMA_VERSION
     man_ver = man.get('feature_schema_version')
+    # v26: a LEGACY (v5) dataset is checked against the v5 lists, and only
+    # when the caller asks; the caller must then use v5 semantics itself.
+    ref_lists = None
+    if (man_ver is not None and man_ver != live_ver and accept_legacy
+            and man_ver in LEGACY_FEATURE_LISTS):
+        ref_lists = LEGACY_FEATURE_LISTS[man_ver]
+        man_ver = live_ver          # version accepted deliberately
     if man_ver is None:
         problems.append(
             'manifest has no feature_schema_version: it predates the schema '
@@ -345,7 +397,8 @@ def assert_manifest_compatible(man, context=''):
 
     for man_key, mod_name in MANIFEST_FEATURE_KEYS:
         stored = man.get(man_key)
-        live = globals()[mod_name]
+        live = (ref_lists[man_key] if ref_lists is not None
+                else globals()[mod_name])
         if stored is None:
             problems.append(f'manifest is missing {man_key!r}')
             continue
@@ -382,12 +435,17 @@ def hop_distances_to(G, dst):
 
 
 def extract_decision(G, pkt, candidates, nc, h_map, n_inflight,
-                     network_mean_occ, ttl_const=None):
+                     network_mean_occ, ttl_const=None, own_queue_occ=None):
     """DECISION-LEVEL features.
 
     Returns (query_feat (F_query,), cand_feat (K, F_cand)) where K = len(candidates).
     `candidates` must already be the VALID (visited-excluded) set, in canonical
     order — see generate_dataset_v2.canonical_candidates.
+
+    own_queue_occ (v6): the deciding node's queue occupancy read LIVE at
+    decision time, excluding the packet being forwarded. REQUIRED when
+    nc['schema_version'] >= 6 -- a missing value raises rather than silently
+    falling back to the frame-start snapshot. Ignored for v5 semantics.
     """
     ttl_ref = float(ttl_const or nc['ttl'])
     c, dst = pkt.current, pkt.dst
@@ -419,10 +477,19 @@ def extract_decision(G, pkt, candidates, nc, h_map, n_inflight,
         neigh_mean_occ = float(network_mean_occ)
         neigh_buffered = float(n_inflight)
 
+    if int(nc.get('schema_version', 5)) >= 6:
+        if own_queue_occ is None:
+            raise ValueError(
+                'feature schema v6: own_queue_live must be read LIVE at decision '
+                'time and passed as own_queue_occ (e.g. sim.queues[c].occupancy); '
+                'refusing to fall back to the frame-start snapshot silently')
+        own_q = float(own_queue_occ)
+    else:
+        own_q = G.nodes[c].get('queue_occupancy', 0.0)
     qf = np.array([
         max(ttl_ref - pkt.hops, 0.0) / ttl_ref,
         min(dist_cd / max(diag, 1e-6), 1.0),
-        G.nodes[c].get('queue_occupancy', 0.0),
+        own_q,
         min(neigh_buffered / nc['buffered_ref'], 1.0),
         neigh_mean_occ,
         min(h_cur / nc['hop_cap'], 1.0),

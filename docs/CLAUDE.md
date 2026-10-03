@@ -1,9 +1,11 @@
 # CLAUDE.md — behavioral contract for this repo
 
 FANET lifelong-RL routing research, IIITDM Kancheepuram. For project state, read
-`docs/FILE1_APPROACH2_RECORD.md` (what was built and measured) and
-`docs/FILE2_PRE_M5_EXECUTION_PLAN.md` (what's next, in order) — do not restate their
-content here; this file is rules, not knowledge.
+`docs/FANET_Full_Project_Report.md` (the current record and plan) and, for the dataset,
+`docs/DATASET_V3_SPEC.md`. `docs/FILE1_APPROACH2_RECORD.md` / `FILE2_PRE_M5_EXECUTION_PLAN.md`
+are history: their banners say what in them is superseded (FILE2's stride-10 patch,
+rate grids and SP-BP oracle must NOT be implemented). Do not restate their content
+here; this file is rules, not knowledge.
 
 ## Non-negotiable conventions
 
@@ -60,8 +62,14 @@ cd C:\Users\PREETH\FANET_sim
 `HEAD` should always be current in FILE1/FILE2's headers — if it isn't, that's a sign
 work was committed without updating them.
 
-Next blocking piece: `experiment_headroom.py` needs `--duration`/`--z_min`/`--z_max`/
-`--drain_time` CLI flags (v11.2, FILE2 §1.5.1) before the three-quantity rate probe can
-run. Do not apply `apply_sim_changes_v8.py` before the new RL environment's SP-BP-parity
-gate passes at the current 40 s operating point (FILE2 §3) — that gate is the only fixed
-reference for telling "the environment is right" apart from "the operating point moved."
+As of v26 (2026-10-02): Dataset V3 is implemented (generator, gates, audit, export,
+restated G4) per `docs/DATASET_V3_SPEC.md`; feature schema is v6 (live own queue).
+Next blocking pieces, in order: re-measure the sink_50 band at 100-300 m, run
+`verify_dataset_grid_v3.py`, smoke + full generation, G3.5 v3 + audit v3, then the
+retrain gate. Labels come from da_gpsr through `teacher_pickers_v3` only — never add
+another label path. Training rows take `own_queue_live` from each context's own-queue
+histogram (`export_phaseb_v3.py`), never from `c_query` (first occurrence, biased high);
+an RL state built from a step uses `s_ownq`. Do not apply
+`apply_v8b_operating_point_STAGED.py` before the new
+RL environment's parity gate passes at the current 40 s point; the dataset does not
+need v8b (it uses `config_v2.OPERATING_POINT`).

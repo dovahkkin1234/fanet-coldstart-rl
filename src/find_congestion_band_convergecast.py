@@ -220,6 +220,11 @@ def main():
     ap.add_argument('--measure-seeds', type=int, default=30)
     ap.add_argument('--duration', type=float, default=40.0)
     ap.add_argument('--initial_energy', type=float, default=None)
+    # v26: altitude flags. Without them every run used BASE's 50-150 m, so the
+    # sink_50 band in results/band_sink50_1000s.json is at the wrong altitude.
+    # Defaults match find_usable_band.py and config_v2.OPERATING_POINT.
+    ap.add_argument('--z_min', type=float, default=100)
+    ap.add_argument('--z_max', type=float, default=300)
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--skip-self-test', action='store_true')
     ap.add_argument('--out', default='results/congestion_band_convergecast.json')
@@ -232,7 +237,7 @@ def main():
     if args.scenario not in suite:
         print(f"  ERROR: {args.scenario} not in convergecast suite: {sorted(suite)}")
         return 1
-    cfg = suite[args.scenario]
+    cfg = {**suite[args.scenario], 'z_min': args.z_min, 'z_max': args.z_max}
     nflows = max(1, cfg['num_drones'] // 4)
     mseeds = list(range(1, args.map_seeds + 1))
 
@@ -242,6 +247,7 @@ def main():
     print(f"  scenario {args.scenario}  N={cfg['num_drones']}  flows={nflows}  "
           f"(all funnel to ONE sink)  dur {args.duration}s")
     print(f"  initial_energy: {args.initial_energy if args.initial_energy is not None else 'DEFAULT (100.0)'}")
+    print(f"  altitude: {args.z_min:.0f}-{args.z_max:.0f} m (sink pinned at z_min)")
     print(f"  estimate: sink saturates near rate ~= 100/{nflows} = {100/nflows:.1f} "
           f"(per-node capacity / flow count) -- UNVERIFIED, this run measures it")
 
@@ -426,6 +432,7 @@ def main():
         json.dump({'schema': 'congestion_band_convergecast_v1',
                    'run_params': {'duration': args.duration,
                                   'initial_energy': args.initial_energy,
+                                  'z_min': args.z_min, 'z_max': args.z_max,
                                   'rates': args.rates,
                                   'map_seeds': args.map_seeds,
                                   'measure_seeds': args.measure_seeds,

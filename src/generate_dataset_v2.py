@@ -96,7 +96,11 @@ import features_v2 as F
 from config_v2 import SCENARIOS, RATES, BASE, get_suite, provenance  # noqa: F401
 SEEDS = list(range(101, 151))          # 50 seeds, disjoint from G3
 
-ORACLE_TEACHER = 'spbp'                # G3: wins all 12 cells
+# LEGACY (Dataset V2 / schema v5) ONLY. The old comment here said SP-BP wins all
+# 12 cells; the oracle panels displaced it in all 9 oracle cells, and Dataset V3
+# labels with da_gpsr (generate_dataset_v3.py). Changing this constant would NOT
+# change the label: spbp_pick_restricted below is called unconditionally.
+ORACLE_TEACHER = 'spbp'
 EPSILON = 0.10
 
 
@@ -245,7 +249,7 @@ class DatasetSimulator(FANETSimulatorV2):
         self.ds_epsilon = float(config.get('epsilon', EPSILON))
         self.ds_vote_fraction = float(config.get('vote_fraction', 1.0))
         self.ds_rng = np.random.default_rng(self.seed + 900_000)
-        self.nc = F.norm_constants(config)
+        self.nc = F.norm_constants(config, schema_version=5)   # v26: legacy v5 data
 
         self.frames = {}          # frame_id -> dict(node_ids,node_feat,edge_index,edge_feat)
         self.decisions = []       # list of dicts
@@ -469,7 +473,14 @@ def main():
     ap.add_argument('--vote_fraction', type=float, default=1.0)
     ap.add_argument('--seeds', type=int, nargs='+', default=SEEDS)
     ap.add_argument('--measure_only', action='store_true')
+    ap.add_argument('--legacy_v5', action='store_true',
+                    help='required: this generator is superseded by '
+                         'generate_dataset_v3.py and only reproduces the v5 dataset')
     args = ap.parse_args()
+    if not args.legacy_v5:
+        raise SystemExit('generate_dataset_v2.py is LEGACY (Dataset V2, schema v5, SP-BP '
+                         'labels, 40 s). Use src/generate_dataset_v3.py; pass '
+                         '--legacy_v5 only to reproduce the old dataset.')
 
     print("\n" + "=" * 78)
     print("  M3.5 — PHASE B DATASET GENERATION")
@@ -582,18 +593,19 @@ def main():
         'panel': PANEL,
         'node_features': F.NODE_FEATURES,
         'edge_features': F.EDGE_FEATURES,
-        'query_features': F.QUERY_FEATURES,
+        'query_features': F.LEGACY_FEATURE_LISTS[5]['query_features'],
         'candidate_features': F.CANDIDATE_FEATURES,
         # Compatibility boundary. Both checkers assert these against the live
         # features_v2 module and abort on mismatch, so a dataset can never be
         # validated by code that disagrees with it about column layout.
-        'feature_schema_version': F.FEATURE_SCHEMA_VERSION,
+        'feature_schema_version': 5,          # v26: this generator is legacy v5
         # Observability scoping: k = neighbourhood radius over which the two
         # load aggregates are computed; None = whole-network
         # (controller-assisted). Recorded so the paper's deployability claim is
         # traceable to the dataset rather than asserted.
         'local_horizon': F.LOCAL_HORIZON,
-        'norm_constants_per_scenario': {k: F.norm_constants({**BASE, **v})
+        'norm_constants_per_scenario': {k: F.norm_constants({**BASE, **v},
+                                                            schema_version=5)
                                         for k, v in SCENARIOS.items()},
         'max_degree_audit': degrees,
         # FIX 3: record the intended split and the ACTUAL holdout size at

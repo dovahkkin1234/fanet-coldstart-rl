@@ -19,8 +19,13 @@ side with no marking.
 | `band_very_dense_1000s.json` | Same, very_dense. Usable rates 60/80. |
 | `band_medium_slow_1000s.json` | Same, medium_slow. Usable rates 40/60/80. |
 | `band_sparse_fast_1000s.json` | Same, sparse_fast. Usable rates 80/100 — **see caveat below**. |
-| `band_sink50_1000s.json` | Convergecast band, 1000 s, battery 8000. Only rate 30 usable. |
+| `band_sink50_1000s.json` | Convergecast band, 1000 s, battery 8000. Only rate 30 usable. **Altitude 50–150 m (BASE), not the 100–300 m operating point** — Dataset V3 needs `band_sink50_1000s_z100_300.json` (DATASET_V3_SPEC §2). |
 | `energy_range.json` | Battery sweep that established `INITIAL_ENERGY = 8000`. |
+| `teacher_choice/summary.json` | Teacher-choice test (2026-10-01): pre-registered verdict SINGLE da_gpsr. 300 s, 100–300 m, battery 8000, 10 paired seeds. |
+| `grid_verification.json` | Dataset V3 grid gate (`verify_dataset_grid_v3.py`); the generator refuses cells that are not PASS here. |
+| `bc_data_scaling/scaling.json` | How much imitation data is worth training on (`test_bc_data_scaling.py`). |
+| `dataset_v3/<data>_preflight_v3.json`, `_audit_v3.json`, `_manifest.json` | Dataset V3 gate verdicts (G3.5 v3, independent audit) and manifest, copied out of the git-ignored `data/` folder. |
+| `g4_v3/gate.json` | Restated G4 check 4 (`rollout_gate_v3.py`): student vs restricted da_gpsr, paired non-inferiority, 1 pp margin. |
 | `panel_cc_v2_corrected.json` | Convergecast oracle panel, after the v16 delta sign-flip fix. |
 
 ### Caveat on `band_sparse_fast_1000s.json`
@@ -88,7 +93,7 @@ All at 1000 s, battery 8000, 10 paired seeds. Full analysis in
 | `panel_oracle_generalized.json` | **SUPERSEDED — means valid, verdict not** | 9 teachers, 990 episodes. Per-cell means are sound. Its verdict used the incumbent-replacement rule, and the run did NOT apply the `sparse_fast` filter. Stores means only, no per-seed data. |
 | `panel_contenders_v2.json` | **SUPERSEDED — use `_corrected`** | 5 contenders, 550 episodes, first file with `per_seed_pdr`. Its printed `oracle_assignment` is WRONG in 4 of 9 cells: the v2 leading-group rule let underpowered, materially worse teachers into the tied group. |
 | `panel_contenders_v2_corrected.json` | CURRENT | Same data, oracle recomputed under the v25 rule (leading group = within 1 pp of top). No re-run. |
-| `panel_extended_v3.json` | **CURRENT — the oracle of record** | Merges `lq_dijkstra` + `etx_dijkstra` (220 new episodes) into the contender data. Equivalence control reproduced stored values exactly before merging. Carries the final `oracle_assignment`. |
+| `panel_extended_v3.json` | **CURRENT — the oracle of record** | Merges `lq_dijkstra` + `etx_dijkstra` (220 new episodes) into the contender data. Equivalence control reproduced stored values exactly before merging. Carries the final `oracle_assignment`. Ran at altitude **50–150 m** (BASE). Evaluation reference only — the Dataset V3 label is da_gpsr everywhere. |
 | `oracle_agreement.json` | CURRENT | Three oracles queried at every decision point on identical state. Overall 3-way agreement 0.649. Its override counter is null (wrong attribute name in the probe); the agreement figures are unaffected. |
 
 ### Final oracle assignment (from `panel_extended_v3.json`)
