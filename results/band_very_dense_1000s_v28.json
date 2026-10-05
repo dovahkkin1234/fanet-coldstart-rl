@@ -1,0 +1,120 @@
+{
+  "schema": "usable_band_v1",
+  "run_params": {
+    "duration": 1000.0,
+    "initial_energy": 8000.0,
+    "z_min": 100,
+    "z_max": 300,
+    "rates": [
+      40.0,
+      60.0,
+      80.0,
+      100.0,
+      120.0
+    ],
+    "map_seeds": 3,
+    "measure_seeds": 30,
+    "phase1_only": true,
+    "mobility": "v28-arrive-on-pass",
+    "note": "actual operating point of THIS run; the provenance block below reports config_v2.BASE, the parity reference"
+  },
+  "scenario": "very_dense",
+  "duration": 1000.0,
+  "alt": [
+    100,
+    300
+  ],
+  "criteria": {
+    "elastic_lo": 0.05,
+    "elastic_hi": 0.85,
+    "min_qovf": 0.02,
+    "max_energy": 0.05
+  },
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2"
+  },
+  "curve": [
+    {
+      "rate": 40.0,
+      "offered": 440.0,
+      "delivered": 317767.6666666667,
+      "generated": 435589.0,
+      "pdr": 0.7295126063024243,
+      "q_ovf": 0.017423917194113413,
+      "energy": 0.0,
+      "link": 0.2527879874530043,
+      "dead": 0.0,
+      "elasticity": NaN,
+      "usable": false
+    },
+    {
+      "rate": 60.0,
+      "offered": 660.0,
+      "delivered": 347799.0,
+      "generated": 653400.0,
+      "pdr": 0.5322910927456382,
+      "q_ovf": 0.0652724211815121,
+      "energy": 0.0,
+      "link": 0.4021610039791858,
+      "dead": 0.0,
+      "elasticity": 0.1890144057031184,
+      "usable": true
+    },
+    {
+      "rate": 80.0,
+      "offered": 880.0,
+      "delivered": 358202.6666666667,
+      "generated": 871189.0,
+      "pdr": 0.4111652771863128,
+      "q_ovf": 0.11611181194130472,
+      "energy": 0.0,
+      "link": 0.4724497210134655,
+      "dead": 0.0,
+      "elasticity": 0.08973861339451827,
+      "usable": true
+    },
+    {
+      "rate": 100.0,
+      "offered": 1100.0,
+      "delivered": 363893.0,
+      "generated": 1088989.0,
+      "pdr": 0.3341567270192812,
+      "q_ovf": 0.14345477012776683,
+      "energy": 0.034630285521708666,
+      "link": 0.48749038481258,
+      "dead": 8.333333333333334,
+      "elasticity": 0.0635431710912256,
+      "usable": false
+    },
+    {
+      "rate": 120.0,
+      "offered": 1320.0,
+      "delivered": 364062.6666666667,
+      "generated": 1306789.0,
+      "pdr": 0.2785933051676029,
+      "q_ovf": 0.2865951070397235,
+      "energy": 0.028534063264995344,
+      "link": 0.40605433113787565,
+      "dead": 8.333333333333334,
+      "elasticity": 0.0023312713718962176,
+      "usable": false
+    }
+  ],
+  "results": {}
+}

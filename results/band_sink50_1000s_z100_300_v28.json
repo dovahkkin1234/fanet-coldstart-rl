@@ -1,0 +1,122 @@
+{
+  "schema": "congestion_band_convergecast_v1",
+  "run_params": {
+    "duration": 1000.0,
+    "initial_energy": 8000.0,
+    "z_min": 100,
+    "z_max": 300,
+    "rates": [
+      20.0,
+      30.0,
+      40.0,
+      50.0,
+      60.0
+    ],
+    "map_seeds": 3,
+    "measure_seeds": 30,
+    "phase1_only": true,
+    "mobility": "v28-arrive-on-pass",
+    "note": "actual operating point of THIS run; the provenance block below reports config_v2.BASE, the parity reference"
+  },
+  "scenario": "sink_50",
+  "duration": 1000.0,
+  "initial_energy": 8000.0,
+  "criteria": {
+    "elastic_lo": 0.05,
+    "elastic_hi": 0.85,
+    "min_qovf": 0.02,
+    "max_energy": 0.05
+  },
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2"
+  },
+  "curve": [
+    {
+      "rate": 20.0,
+      "offered": 240.0,
+      "delivered": 210755.66666666666,
+      "generated": 237600.0,
+      "pdr": 0.8870187991021324,
+      "q_ovf": 0.00864337822671156,
+      "energy": 0.0,
+      "link": 0.10008698092031426,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7364304166608907,
+      "elasticity": NaN,
+      "usable": false
+    },
+    {
+      "rate": 30.0,
+      "offered": 360.0,
+      "delivered": 248834.66666666666,
+      "generated": 356400.0,
+      "pdr": 0.6981893004115226,
+      "q_ovf": 0.0359006734006734,
+      "energy": 0.0,
+      "link": 0.26165918443696223,
+      "dead": 0.0,
+      "sink_energy_frac": 0.6888316666598518,
+      "elasticity": 0.36135683184477446,
+      "usable": true
+    },
+    {
+      "rate": 40.0,
+      "offered": 480.0,
+      "delivered": 258169.33333333334,
+      "generated": 475188.0,
+      "pdr": 0.543299353799619,
+      "q_ovf": 0.0669924324688334,
+      "energy": 0.0,
+      "link": 0.38545726463350644,
+      "dead": 0.0,
+      "sink_energy_frac": 0.6771633333262638,
+      "elasticity": 0.1125405891997902,
+      "usable": true
+    },
+    {
+      "rate": 50.0,
+      "offered": 600.0,
+      "delivered": 256051.0,
+      "generated": 593988.0,
+      "pdr": 0.43107099806730104,
+      "q_ovf": 0.09641496685679396,
+      "energy": 0.0,
+      "link": 0.46826198509060785,
+      "dead": 0.0,
+      "sink_energy_frac": 0.6798112499929884,
+      "elasticity": -0.03282083593713701,
+      "usable": false
+    },
+    {
+      "rate": 60.0,
+      "offered": 720.0,
+      "delivered": 248672.0,
+      "generated": 712800.0,
+      "pdr": 0.3488664421997756,
+      "q_ovf": 0.14021464646464646,
+      "energy": 0.0,
+      "link": 0.506771417882529,
+      "dead": 0.0,
+      "sink_energy_frac": 0.6890349999931895,
+      "elasticity": -0.1440923878446091,
+      "usable": false
+    }
+  ],
+  "results": {}
+}
