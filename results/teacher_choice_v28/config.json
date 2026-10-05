@@ -1,0 +1,43 @@
+{
+ "stage": "all",
+ "out": "results\\teacher_choice_v28",
+ "duration": 300.0,
+ "z_min": 100.0,
+ "z_max": 300.0,
+ "initial_energy": 8000.0,
+ "epsilon": 0.1,
+ "record_prob": 0.05,
+ "train_seeds": [
+  101,
+  102,
+  103,
+  104,
+  105,
+  106,
+  107,
+  108,
+  109,
+  110
+ ],
+ "val_seeds": [
+  136,
+  137
+ ],
+ "rollout_seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10
+ ],
+ "model_seeds": 2,
+ "max_workers": 12,
+ "device": "cuda",
+ "smoke": false,
+ "mobility": "v28-arrive-on-pass"
+}
