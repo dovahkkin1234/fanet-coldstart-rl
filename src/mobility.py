@@ -3,9 +3,15 @@ mobility.py
 Random Waypoint 3D mobility model for FANET simulation.
 
 Each drone moves independently. No coordination between drones.
+
+v28 (2026-10-04): waypoint-trapping fix -- see DroneRWP.step. MOBILITY_VERSION
+is recorded by the band scripts, the dataset generator and the tests; the grid
+and dataset gates refuse results produced with a different version.
 """
 
 import numpy as np
+
+MOBILITY_VERSION = 'v28-arrive-on-pass'
 
 
 class DroneRWP:
@@ -71,6 +77,25 @@ class DroneRWP:
         self.vx = dx * scale * (1.0 - vertical_fraction)
         self.vy = dy * scale * (1.0 - vertical_fraction)
         self.vz = dz * scale * vertical_fraction
+
+        # v28 FIX -- WAYPOINT TRAPPING. A step is speed * dt (2.5-25 m at the
+        # 0.5 s frame) but arrival needs dist < 1 m. A step that passed the
+        # waypoint without landing within 1 m of it overshot, turned back and
+        # overshot again, every frame, forever: the drone never picked a new
+        # waypoint. Measured at 1000 s: 37-51% of the 5-15 m/s drones and every
+        # sparse_fast / sink_50 drone frozen in place, jumping a full step every
+        # frame (fake velocities, flickering links). Such a step now ARRIVES.
+        # Every other step is the original code, so a trajectory is unchanged
+        # up to the drone's first would-be overshoot.
+        sx, sy, sz = self.vx * dt, self.vy * dt, self.vz * dt
+        if sx * sx + sy * sy + sz * sz >= dist * dist:
+            rx, ry, rz = dx - sx, dy - sy, dz - sz
+            if rx * rx + ry * ry + rz * rz >= 1.0:
+                self.x, self.y, self.z = self.dest_x, self.dest_y, self.dest_z
+                self.vx, self.vy, self.vz = dx / dt, dy / dt, dz / dt
+                self.pause_remaining = self.rng.uniform(0, self.pause_max)
+                self._pick_new_waypoint()
+                return
 
         self.x += self.vx * dt
         self.y += self.vy * dt

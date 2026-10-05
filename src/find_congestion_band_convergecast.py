@@ -45,6 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import experiment_spbp_mechanism          # noqa: F401 -- registers spbp_ab_*
 from simulator_v2 import FANETSimulatorV2
+from mobility import MOBILITY_VERSION                  # v28: recorded in run_params
 from config_v2 import BASE, get_suite, provenance
 
 VARIANTS = ['spbp_ab_noqueue', 'spbp_ab_full',
@@ -227,6 +228,9 @@ def main():
     ap.add_argument('--z_max', type=float, default=300)
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--skip-self-test', action='store_true')
+    ap.add_argument('--phase1_only', action='store_true',
+                    help='v28: stop after phase 1 (which rates are usable) -- all the '
+                         'dataset grid needs')
     ap.add_argument('--out', default='results/congestion_band_convergecast.json')
     args = ap.parse_args()
 
@@ -318,7 +322,10 @@ def main():
     usable = [c for c in curve if c['usable']]
     print(f"\n  usable cells: {len(usable)}/{len(curve)}")
     results = {}
-    if not usable:
+    if usable and args.phase1_only:
+        print('  ' + ', '.join(f"rate {c['rate']:.1f}" for c in usable))
+        print('  --phase1_only: phase 2 (matched queue ablation) skipped')
+    elif not usable:
         print('  *** NO USABLE BAND in this rate range. Extend --rates and re-run')
         print('      before concluding none exists -- the 100/flows estimate above')
         print('      is a rough guide, not a measurement. ***')
@@ -436,6 +443,8 @@ def main():
                                   'rates': args.rates,
                                   'map_seeds': args.map_seeds,
                                   'measure_seeds': args.measure_seeds,
+                                  'phase1_only': args.phase1_only,
+                                  'mobility': MOBILITY_VERSION,
                                   'note': 'actual operating point of THIS run; '
                                           'the provenance block below reports '
                                           'config_v2.BASE, the parity reference'},

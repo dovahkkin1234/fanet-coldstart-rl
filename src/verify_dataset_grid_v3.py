@@ -9,7 +9,8 @@ results\\grid_verification.json, which generate_dataset_v3.py requires (every ce
 PASS, or --allow_unverified_cells).
 
   band cell    PASS iff the band file was measured at the dataset operating point
-               (duration 1000 s, battery 8000, altitude 100-300 m) and marks the
+               (duration 1000 s, battery 8000, altitude 100-300 m, and -- v28 --
+               the current MOBILITY_VERSION) and marks the
                rate usable under the band criteria
   anchor cell  PASS iff measured in that same file and below its lowest usable
                rate (the anchor is below the band on purpose)
@@ -34,14 +35,42 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config_v2 as C                                        # noqa: E402
+from mobility import MOBILITY_VERSION                        # noqa: E402
 
 BAND_FILES = {
-    'dense_slow': ['band_dense_slow_1000s.json'],
-    'very_dense': ['band_very_dense_1000s.json'],
-    'medium_slow': ['band_medium_slow_1000s.json'],
-    'sparse_fast': ['band_sparse_fast_1000s.json'],
+    # v28: the re-measurement with the fixed mobility goes FIRST (suffix _v28, so the
+    # pre-v28 files are kept for comparison); those stay listed only so the verifier
+    # can say why it refuses them
+    'dense_slow': ['band_dense_slow_1000s_v28.json', 'band_dense_slow_1000s.json'],
+    'very_dense': ['band_very_dense_1000s_v28.json', 'band_very_dense_1000s.json'],
+    'medium_slow': ['band_medium_slow_1000s_v28.json', 'band_medium_slow_1000s.json'],
+    'sparse_fast': ['band_sparse_fast_1000s_v28.json', 'band_sparse_fast_1000s.json'],
     # the re-measurement at 100-300 m goes FIRST; the original (50-150 m) is the fallback
-    'sink_50': ['band_sink50_1000s_z100_300.json', 'band_sink50_1000s.json'],
+    'sink_50': ['band_sink50_1000s_z100_300_v28.json', 'band_sink50_1000s_z100_300.json',
+                'band_sink50_1000s.json'],
+}
+
+# v28: the commands that produce each band file at the operating point with the
+# current mobility. Phase 1 decides which rates are usable -- all the grid needs.
+# --skip-self-test: the self-tests check the CODE (determinism, paired traffic, no
+# collapse) in 8 serial full-length episodes -- hours at 1000 s;
+# verify_mobility_fix_v28.py check 5 runs them on both band scripts.
+REMEASURE = {
+    'dense_slow': r'python src\find_usable_band.py --scenario dense_slow --duration 1000 '
+                  r'--initial_energy 8000 --rates 40 60 80 100 120 160 --phase1_only --skip-self-test '
+                  r'--max_workers 12 --out results\band_dense_slow_1000s_v28.json',
+    'very_dense': r'python src\find_usable_band.py --scenario very_dense --duration 1000 '
+                  r'--initial_energy 8000 --rates 40 60 80 100 120 --phase1_only --skip-self-test '
+                  r'--max_workers 12 --out results\band_very_dense_1000s_v28.json',
+    'medium_slow': r'python src\find_usable_band.py --scenario medium_slow --duration 1000 '
+                   r'--initial_energy 8000 --rates 30 40 60 80 --phase1_only --skip-self-test '
+                   r'--max_workers 12 --out results\band_medium_slow_1000s_v28.json',
+    'sparse_fast': r'python src\find_usable_band.py --scenario sparse_fast --duration 1000 '
+                   r'--initial_energy 8000 --rates 40 60 80 100 120 --phase1_only --skip-self-test '
+                   r'--max_workers 12 --out results\band_sparse_fast_1000s_v28.json',
+    'sink_50': r'python src\find_congestion_band_convergecast.py --scenario sink_50 '
+               r'--duration 1000 --initial_energy 8000 --rates 20 30 40 50 60 --phase1_only --skip-self-test '
+               r'--max_workers 8 --out results\band_sink50_1000s_z100_300_v28.json',
 }
 
 
@@ -60,7 +89,7 @@ def band_operating_point(b):
             'initial_energy': (float(rp['initial_energy']) if rp.get('initial_energy') is not None
                                else float(b['initial_energy']) if b.get('initial_energy') is not None
                                else None),
-            'z': z}
+            'z': z, 'mobility': rp.get('mobility')}
 
 
 def matches(op):
@@ -70,6 +99,9 @@ def matches(op):
         why.append(f"duration {op['duration']} != {o['duration']}")
     if op['initial_energy'] != o['initial_energy']:
         why.append(f"battery {op['initial_energy']} != {o['initial_energy']}")
+    if op.get('mobility') != MOBILITY_VERSION:
+        why.append(f"mobility {op.get('mobility') or 'pre-v28 (waypoint trapping)'} "
+                   f"!= {MOBILITY_VERSION}")
     if op['z'] != (float(o['z_min']), float(o['z_max'])):
         why.append(f"altitude {op['z']} != ({o['z_min']}, {o['z_max']})")
     return why
@@ -108,6 +140,7 @@ def main():
     args = ap.parse_args()
 
     out = {'operating_point': C.OPERATING_POINT, 'grid': C.DATASET_GRID, 'cells': {},
+           'mobility': MOBILITY_VERSION, 'band_moved': {},
            'created': time.strftime('%Y-%m-%d %H:%M:%S')}
     print('=' * 78)
     print('  DATASET V3 GRID-IN-BAND VERIFICATION')
@@ -126,6 +159,15 @@ def main():
                 continue
             chosen = (fn, b)
             break
+        if chosen is not None:
+            # v28: the grid follows the band (decision 2026-10-02: band = the usable rates,
+            # anchor = the lowest swept rate, below the band). Reported here, never applied.
+            swept = sorted(float(c['rate']) for c in chosen[1]['curve'])
+            use = sorted(float(c['rate']) for c in chosen[1]['curve'] if c.get('usable'))
+            rule = {'anchor': [swept[0]] if use and swept[0] < use[0] else [], 'band': use}
+            if rule != {'anchor': [float(x) for x in g['anchor']], 'band': [float(x) for x in g['band']]}:
+                out['band_moved'][sc] = {'grid': {'anchor': g['anchor'], 'band': g['band']},
+                                         'by_rule': rule, 'band_file': chosen[0]}
         for r in C.dataset_rates(sc):
             key = f'{sc}@{r:g}'
             role = C.rate_role(sc, r)
@@ -172,10 +214,20 @@ def main():
     print(f"\n  {n_pass}/{len(out['cells'])} cells PASS  -> {args.out}")
     if n_pass < len(out['cells']):
         print('  The generator refuses non-PASS cells unless --allow_unverified_cells.')
-        print('  sink_50: re-measure its band at 100-300 m (the band script now has --z_min/--z_max):')
-        print('    python src\\find_congestion_band_convergecast.py --scenario sink_50 --duration 1000 '
-              '--initial_energy 8000 --rates 20 30 40 50 60 --measure-seeds 15 --max_workers 8 '
-              '--out results\\band_sink50_1000s_z100_300.json')
+    todo = [sc for sc in REMEASURE if any(v['status'] == 'UNVERIFIED' for k, v in out['cells'].items()
+                                          if k.split('@')[0] == sc)]
+    if todo:
+        print('  Measure these bands at the operating point with the current mobility:')
+        for sc in todo:
+            print('    ' + REMEASURE[sc])
+    for sc, v in out['band_moved'].items():
+        r = v['by_rule']
+        note = ('  -- no usable rate: widen --rates' if not r['band'] else
+                '  -- no swept rate below the band: add a lower rate' if not r['anchor'] else '')
+        print(f"  BAND MOVED  {sc}: DATASET_GRID {v['grid']}  ->  by the rule {r}  ({v['band_file']}){note}")
+    if out['band_moved']:
+        print('  DATASET_GRID in config_v2 must follow the band before generating (decision '
+              '2026-10-02: band = the usable rates, anchor = the lowest swept rate, below the band).')
     return 0
 
 

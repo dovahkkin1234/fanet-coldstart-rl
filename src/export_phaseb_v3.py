@@ -123,6 +123,8 @@ def main():
                     help='refuse a bigger export (default 22 = ~70%% of 32 GB; the trainer '
                          'holds about the same)')
     ap.add_argument('--force', action='store_true')
+    ap.add_argument('--allow_stale_code', action='store_true',
+                    help='export a dataset written by other code (recorded in the manifest)')
     args = ap.parse_args()
 
     man = json.load(open(os.path.join(args.data, 'manifest.json')))
@@ -133,6 +135,12 @@ def main():
         raise SystemExit(f"record schema v{man.get('record_schema_version')} != generator "
                          f"v{G.RECORD_SCHEMA_VERSION} (regenerate: shards without own-queue "
                          f"histograms cannot be exported)")
+    if man.get('code_signature') != G.CODE_SIGNATURE:
+        msg = (f"dataset written by other code (signature {man.get('code_signature') or 'none, pre-v28'} "
+               f"!= current {G.CODE_SIGNATURE}): its episodes do not come from this simulator")
+        if not args.allow_stale_code:
+            raise SystemExit(msg + ' -- regenerate, or pass --allow_stale_code')
+        print('  WARNING: ' + msg)
     col = man['query_features'].index('own_queue_live')
     gen_sc = man['split_plan']['generalisation_scenario']
     eps = []
@@ -285,6 +293,8 @@ def main():
         'query_features': man['query_features'], 'candidate_features': man['candidate_features'],
         'feature_schema_version': man['feature_schema_version'],
         'record_schema_version': man['record_schema_version'],
+        'code_signature': man.get('code_signature'), 'mobility': man.get('mobility'),
+        'stale_code_allowed': bool(args.allow_stale_code),
         'local_horizon': man['local_horizon'],
         'split_plan': man['split_plan'],
         'norm_constants_per_scenario': man['norm_constants_per_scenario'],

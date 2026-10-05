@@ -60,6 +60,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mobility import MOBILITY_VERSION                     # noqa: E402  (v28)
 
 CELLS = ('medium_slow', 'dense_slow', 'very_dense')
 FRACS = (0.03, 0.10, 0.30, 1.0)
@@ -79,6 +80,7 @@ def tc_settings(tc_dir):
     p = os.path.join(tc_dir, 'config.json')
     c = json.load(open(p)) if os.path.isfile(p) else {}
     s = {k: c.get(k, v) for k, v in TC_DEFAULTS.items()}
+    s['mobility'] = c.get('mobility')                      # None = produced before v28
     for k in ('duration', 'z_min', 'z_max', 'initial_energy', 'epsilon', 'record_prob'):
         s[k] = float(s[k])
     return s, (p if c else 'test_teacher_choice defaults (config.json not found)')
@@ -482,6 +484,21 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     p = os.path.join(a.out, 'scaling.json')
     res = json.load(open(p)) if os.path.isfile(p) else {'hard': {}, 'curve': {}, 'pdr': {}}
+    # v28: the extension replays the teacher-choice episodes and the rollouts are paired
+    # with its rollout.json -- both only valid in the simulator that produced them. A
+    # scaling.json belongs to the simulator of ONE teacher-choice run.
+    sim = a.stage in ('extend', 'rollout') or (a.stage == 'all' and (a.extend or a.rollout))
+    tc_mob = a.tc_cfg['mobility']
+    if sim and tc_mob != MOBILITY_VERSION:
+        raise SystemExit(f"  {a.tc} was produced with mobility "
+                         f"{tc_mob or 'pre-v28 (waypoint trapping)'}; this simulator "
+                         f'is {MOBILITY_VERSION}. Its episodes cannot be replayed or paired here: '
+                         f're-run test_teacher_choice.py into a new --out, or run only '
+                         f'--stage hard / curve / analyze.')
+    if any(res.get(k) for k in ('hard', 'curve', 'pdr')) and res.get('mobility') != tc_mob:
+        raise SystemExit(f"  {p} holds results from mobility {res.get('mobility') or 'pre-v28'}, "
+                         f"{a.tc} is from {tc_mob or 'pre-v28'} -- use a new --out")
+    res['mobility'] = tc_mob
     print('=' * 78)
     print(f'  BC DATA SCALING  tc={a.tc}  device={device}'
           f'{"   *** SMOKE: numbers meaningless ***" if a.smoke else ""}')

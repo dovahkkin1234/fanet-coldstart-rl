@@ -655,6 +655,8 @@ Four experiments, **1,769 episodes**: the 9-teacher generalised panel (990) → 
 
 > Altitude 100–300 m for the four Suite A scenarios; **sink_50's band was measured at 50–150 m** (the convergecast band script had no altitude flags — added in v26). Re-measure it before Dataset V3 uses it (DATASET_V3_SPEC §2).
 
+> **v28 (2026-10-04): every number in this section was measured with the waypoint-trapping bug** — at 1000 s, 37–51% of the 5–15 m/s drones and every sparse_fast / sink_50 drone end the episode frozen at a waypoint (DATASET_V3_SPEC §0 #15). The bands are re-measured after the fix; treat these as pre-v28.
+
 **Phase 1 — elasticity sweep (bold = usable):**
 
 | scenario (N, flows) | rate → PDR (elasticity, q_ovf) |

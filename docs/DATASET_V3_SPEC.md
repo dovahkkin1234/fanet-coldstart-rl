@@ -1,6 +1,6 @@
 # Dataset V3 — Specification
 
-**Status:** implemented (patch v26), smoke-tested; full generation not yet run.
+**Status:** v26 implemented and run in full (2026-10-04: 800 episodes, G3.5 v3 and audit PASS) — then **invalidated by the waypoint-trapping bug (§0 #15), fixed in v28: re-measure the bands and regenerate before any use (§10).**
 **Written:** 2026-10-02/03. **Supersedes:** `docs/DATASET_V2_MASTER_SPEC.md` (in repo),
 `M3.5_Dataset_Schema.md` and `LOAD_DENSITY_DESIGN.md` (never committed). Where this document
 and an older one disagree, this one is current; §11 lists every statement it overturns.
@@ -35,6 +35,7 @@ invalidated part of the V2 plan.
 | 12 | **Gates that did not do what they said** | G3.5 v2 check 7 "reproducibility" only checked the seed list; audit C would flag correct da_gpsr labels as INCONSISTENT; per-episode metadata was collected and discarded; the node-id invariant was defined but never called; strict queue-slot conservation was never enabled | all fixed in the v3 gates / generator |
 | 13 | **Isolated-node packets lose their queue slot** (simulator quirk, reported, not fixed) | a packet at a node with no neighbours is removed from its queue by the run loop and never re-enqueued; it bypasses FIFO and does not count toward occupancy. Rare: 13 packets of 70 k (0.02%) in sparse_fast@100, 0 in dense_slow@80 (150 s) | documented; changing the simulator would invalidate every panel — leave until a decision is taken |
 | 14 | **The live own queue differs between a context's copies** (found in the v26 recheck) | the context key cannot contain `own_queue_live`: with it, 53–81% of decisions would be distinct (3–7× the contexts). Storing only the first occurrence's value (the first v26 draft) is biased: the first decision of a frame meets the node's fullest queue — in the smoke (all 460 k decisions) the own queue differs from the first occurrence's in 57–74% of decisions per cell, the first occurrence is higher by 4–12 packets on average, and the decision-weighted mean would have been 22.7 packets instead of the true 14.0 | every context also stores the exact histogram of the own-queue lengths its occurrences saw (`o_ctx/o_ownq/o_count`, ~5 B per pair); the export draws the own queue from it (§8); the first-occurrence value in `c_query` is never trained on |
+| 15 | **Drones get trapped at their waypoints** (found 2026-10-04, after the full v26 run; in `mobility.py` since the first commit) | a mobility step is speed × 0.5 s (2.5–25 m) but arrival needs < 1 m, so a step that passes the waypoint without landing within 1 m starts an endless overshoot oscillation. Trapped at 300 s / 1000 s: 12–19% / 37–51% of the 5–15 m/s drones, 100% / 100% of sparse_fast, 91% / 100% of sink_50; a trapped drone jumps a full step every frame (fake velocities, flickering links). In the v26 dataset 38–46% of sparse_fast seeds deliver < 5% of packets. Same episode with the fix: sparse_fast@40 seed 106 PDR 0.021 → 0.352, seed 101 0.486 → 0.425; sink_50@30 seed 136 0.223 → 0.728 (link-error drops 55% → 26%); dense_slow@60 seed 101 0.682 → 0.684. At the 40 s parity point the slow scenarios are essentially unchanged (≤ 0.14 pp; G2 anchors identical); sparse_fast is not (+10.8 pp on average) | v28: a step that would pass the waypoint arrives; `MOBILITY_VERSION` and a code signature are recorded by the band scripts, the shards and the tests, and every gate refuses a mismatch. Bands re-measured, dataset regenerated (§10) |
 
 ---
 
@@ -83,6 +84,7 @@ invalidated part of the V2 plan.
 * **sink_50:** re-measure first (§10 step 2). If rate 30 is not usable at 100–300 m, update
   `DATASET_GRID['sink_50']` by the same rule (band = usable rates, anchor = lowest swept) and
   re-run the verifier before generating.
+* **v28:** a band file counts only if it records `mobility = v28-arrive-on-pass`; the verifier refuses older files and prints the five re-measure commands (`--phase1_only`: which rates are usable is all the grid needs). They write `band_*_v28.json` beside the pre-v28 files, which are kept for comparison. `grid_verification.json` records the mobility too, and the generator treats a pre-v28 one as verifying nothing. If a band moves, `DATASET_GRID` follows it by the rule above.
 
 ---
 
@@ -206,7 +208,7 @@ Overall 35 da_gpsr / 5 / 5 / 5. Imitation accuracy should be reported per behavi
 | gate | script | what it proves |
 |---|---|---|
 | grid | `verify_dataset_grid_v3.py` | every cell is in (band) or below (anchor) a band measured at the operating point |
-| G3.5 v3 | `preflight_dataset_v3_check.py` | 0 schema · 1 structure · 2 labels carry the max score · 3 trivial/hard shares (diagnostic) · 4 behaviour: seed→policy, non-ε action == behaviour choice, no −1, ε per episode and pooled · 5 coverage · 6 feature ranges / dead columns · **7 reproducibility (byte-identical regeneration)** · 8 redundancy · 9 dedup (unique keys, Σ multiplicity = decisions; every own-queue histogram sums to its multiplicity and holds the first-occurrence value that `c_query` stores; every step's own queue is in its context's histogram) · 10 chains (contiguous from the source, s→a→s′ linkage, final outcome = fate, hop count) · 11 sampled set == hash rule exactly · 12 frame counters == metrics |
+| G3.5 v3 | `preflight_dataset_v3_check.py` | 0 schema (v28: and the code signature — the dataset must come from the current simulator / feature / generator code, every shard from the same code) · 1 structure · 2 labels carry the max score · 3 trivial/hard shares (diagnostic) · 4 behaviour: seed→policy, non-ε action == behaviour choice, no −1, ε per episode and pooled · 5 coverage · 6 feature ranges / dead columns · **7 reproducibility (byte-identical regeneration)** · 8 redundancy · 9 dedup (unique keys, Σ multiplicity = decisions; every own-queue histogram sums to its multiplicity and holds the first-occurrence value that `c_query` stores; every step's own queue is in its context's histogram) · 10 chains (contiguous from the source, s→a→s′ linkage, final outcome = fate, hop count) · 11 sampled set == hash rule exactly · 12 frame counters == metrics |
 | audit v3 | `audit_dataset_v3.py` | independent re-derivation from stored frames (own code, own splitmix64): A candidates are neighbours in canonical order · B label & scores · C every feature · D votes and the behaviour choice · E splits · F hashing · G own-queue histograms recounted in plain Python |
 
 **Every per-shard check and every audit re-derivation is first run on a deliberately corrupted
@@ -252,6 +254,8 @@ features 1.00000, 0 own-queue histogram mismatches.
 
 ## 9. Size and cost
 
+**Actual v26 run** (2026-10-04, Z8, 12 workers, with the trapping bug): 10.0 h for 800 episodes; 120.1 M contexts, 471 M own-queue pairs, 71.5 M steps, 714 M decisions, 11.5 GB. Export at `--ctx_frac 0.6` of train + val: 40.1 M rows, 997 k frames, 20.2 GB in 155 s. The v28 run will differ (the networks keep moving).
+
 Measured in the sandbox (60 s smoke episodes, 150 s probes, one 1000 s run per scenario) and
 extrapolated to 1000 s:
 
@@ -284,6 +288,26 @@ took ~8.5 s per epoch on the A4000, so ~45 M rows ≈ 14 min per epoch, ~5–7 h
 ---
 
 ## 10. Execution order
+
+**v28 re-run** (after `apply_mobility_fix_v28.py` and `verify_mobility_fix_v28.py`):
+
+```
+1  bands, phase 1 only (commands printed by verify_dataset_grid_v3.py; ~2-3 h):
+     find_usable_band.py x 4 (dense_slow, very_dense, medium_slow, sparse_fast) and
+     find_congestion_band_convergecast.py (sink_50), all --duration 1000 --initial_energy 8000,
+     into results\band_*_v28.json (the pre-v28 files are kept); --skip-self-test, because
+     the self-tests check the code, not the band (verify_mobility_fix_v28 check 5 runs them)
+2  python src\verify_dataset_grid_v3.py --diagnose_seeds 3 --max_workers 12
+     (BAND MOVED lines = a band changed -> DATASET_GRID follows it, then re-verify)
+3  python src\generate_dataset_v3.py --smoke ; G3.5 v3 + audit on data\v3_smoke
+4  python src\generate_dataset_v3.py --out data\v3m --max_workers 12   (a NEW folder)
+5  python src\preflight_dataset_v3_check.py --data data\v3m ; python src\audit_dataset_v3.py --data data\v3m
+6  python src\export_phaseb_v3.py --data data\v3m --out data\phaseB_v3m --splits train val --ctx_frac 0.6
+7  python src\rollout_gate_v3.py --data data\phaseB_v3m --out results\g4_v3m --max_workers 12
+```
+Recommended before step 4: `test_teacher_choice.py --out results\teacher_choice_v28` (~3 h). Its verdict (single da_gpsr) chose the label teacher, and it ran at 300 s, where 12–19% of the slow drones were trapped by the end of an episode. Optional after it: `test_bc_data_scaling.py --tc results\teacher_choice_v28 --out results\bc_data_scaling_v28` (~2 h, Point-1 on the fixed simulator).
+
+**Original v26 order** (run 2026-10-03/04 on the trapping simulator; kept for the record):
 
 ```
 0  python src\test_bc_data_scaling.py --stage all --extend --rollout --max_workers 12
@@ -328,6 +352,9 @@ for that gate). Risk accepted: a simulator bug found later would mean regenerati
 | panels ran at 100–300 m | Panel_Results_Report §2.1, report §12 | they ran at 50–150 m (BASE); bands (except sink_50) at 100–300 m |
 | dequeue-before-decision explains the zero own queue | audit_dataset_v2 | frame-start stamping (corrected in v26) |
 | G4 check 4 = ≥ 90% of SP-BP | rollout_eval_v2 | non-inferiority vs restricted da_gpsr (§8) |
+| drones follow Random Waypoint for the whole episode | `mobility.py` since the first commit | they froze at a waypoint after a missed arrival (§0 #15); fixed in v28 |
+| the 1000 s bands; "at 1000 s only rate 30 is usable in sink_50"; the v26 dataset and its per-cell PDRs | report §11.2, `results/band_*_1000s.json`, `data/v3` | measured on freezing networks; re-measured / regenerated after v28 |
+| link-lifetime saturation is purely structural (§0 #10) | this spec | partly confounded: a trapped drone reports a velocity that flips every frame; re-check on the v28 dataset |
 
 ## 12. Open items
 
@@ -335,5 +362,7 @@ for that gate). Risk accepted: a simulator bug found later would mean regenerati
 2. Training size from `test_bc_data_scaling.py` (V3-12).
 3. Drop/hold in the M5 action space (environment contract) — the dataset already encodes it.
 4. D2 reference re-measured at 100–300 m.
-5. `BUFFERED_REF_V6` re-checked by G3.5 v3's saturation report on the full dataset.
+5. `BUFFERED_REF_V6`: checked on the v26 run (largest value 73% of the range, nothing clipped); re-confirm on the v28 run.
 6. The isolated-node queue quirk (§0 #13): fix or keep, before the M5 environment is frozen.
+7. **v28 re-run** (§10): bands → grid (`DATASET_GRID` may move) → regeneration → gates → export → G4.
+8. Point-1 (`test_bc_data_scaling.py`, 2026-10-04): the pre-registered verdict is DATA-LIMITED, recorded as such. Its only trigger (very_dense hard rows +0.77 pp, 30% → 100%) is within model-seed noise (two seeds differ by up to 1.0 pp), delivery moved +0.04 pp, and the 4× step reversed it in every cell; delivery is flat from 13.7 k to 1.8 M rows. Report both (V3-12).

@@ -124,11 +124,22 @@ def main():
     ap.add_argument('--device', default=None)
     ap.add_argument('--smoke', action='store_true', help='2 epochs, 60 s rollouts, 1 seed')
     ap.add_argument('--stage', choices=('all', 'train', 'rollout', 'analyze'), default='all')
+    ap.add_argument('--allow_stale_code', action='store_true',
+                    help='gate an export whose dataset was written by other code')
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     bad = [s for s in args.eval_seeds if 101 <= s <= 150]
     if bad:
         raise SystemExit(f'eval seeds {bad} are dataset seeds -- that would measure memorisation')
+    if args.stage in ('all', 'train', 'rollout'):
+        # v28: the reference runs in THIS simulator; the student must have learned from it
+        import generate_dataset_v3 as G
+        pman = os.path.join(args.data, 'manifest.json')
+        sig = json.load(open(pman)).get('code_signature') if os.path.isfile(pman) else None
+        if sig != G.CODE_SIGNATURE and not args.allow_stale_code:
+            raise SystemExit(f'  export {args.data} comes from other code (signature {sig or "none, pre-v28"} '
+                             f'!= current {G.CODE_SIGNATURE}) -- re-export a regenerated dataset, '
+                             f'or pass --allow_stale_code')
     duration = 60.0 if args.smoke else None
     if args.smoke:
         args.eval_seeds, args.model_seeds = args.eval_seeds[:1], 1

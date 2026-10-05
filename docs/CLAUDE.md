@@ -62,11 +62,16 @@ cd C:\Users\PREETH\FANET_sim
 `HEAD` should always be current in FILE1/FILE2's headers — if it isn't, that's a sign
 work was committed without updating them.
 
-As of v26 (2026-10-02): Dataset V3 is implemented (generator, gates, audit, export,
-restated G4) per `docs/DATASET_V3_SPEC.md`; feature schema is v6 (live own queue).
-Next blocking pieces, in order: re-measure the sink_50 band at 100-300 m, run
-`verify_dataset_grid_v3.py`, smoke + full generation, G3.5 v3 + audit v3, then the
-retrain gate. Labels come from da_gpsr through `teacher_pickers_v3` only — never add
+As of v28 (2026-10-04): the v26 dataset was generated and passed every gate, then the
+mobility bug was found (drones trapped at their waypoints; DATASET_V3_SPEC §0 #15) and
+fixed in v28. Results from episodes longer than ~40 s produced before v28 ran on freezing
+networks. Next blocking pieces, in order: re-measure the five bands with `--phase1_only`,
+`verify_dataset_grid_v3.py` (DATASET_GRID follows a band that moved), re-confirm the
+teacher choice (`test_teacher_choice.py` into a new folder -- its 300 s verdict chose the
+label teacher), regenerate into a new folder, G3.5 v3 + audit v3, export, then the
+retrain gate. Never resume or mix outputs across a `MOBILITY_VERSION` / code-signature
+change -- the scripts refuse it. Feature
+schema is v6 (live own queue). Labels come from da_gpsr through `teacher_pickers_v3` only — never add
 another label path. Training rows take `own_queue_live` from each context's own-queue
 histogram (`export_phaseb_v3.py`), never from `c_query` (first occurrence, biased high);
 an RL state built from a step uses `s_ownq`. Do not apply

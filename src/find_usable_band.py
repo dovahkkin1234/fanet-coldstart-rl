@@ -63,6 +63,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import experiment_spbp_mechanism          # noqa: F401 -- registers spbp_ab_*
 from simulator_v2 import FANETSimulatorV2
+from mobility import MOBILITY_VERSION                  # v28: recorded in run_params
 from config_v2 import BASE, SCENARIOS, provenance
 
 VARIANTS = ['spbp_ab_noqueue', 'spbp_ab_full',
@@ -259,6 +260,9 @@ def main():
     ap.add_argument('--z_max', type=float, default=300)
     ap.add_argument('--max_workers', type=int, default=None)
     ap.add_argument('--skip-self-test', action='store_true')
+    ap.add_argument('--phase1_only', action='store_true',
+                    help='v28: stop after phase 1 (which rates are usable) -- all the '
+                         'dataset grid needs')
     ap.add_argument('--out', default='results/usable_band.json')
     args = ap.parse_args()
 
@@ -361,7 +365,9 @@ def main():
     # code masking the real one. Harmless (both are {} on the empty path) but
     # removed for clarity.
     results = {}
-    if usable:
+    if usable and args.phase1_only:
+        print('\n  --phase1_only: phase 2 (matched queue ablation) skipped')
+    elif usable:
         seeds = list(range(1, args.measure_seeds + 1))
         print('\n' + '-' * 94)
         print('  PHASE 2 -- matched queue ablation, ONLY inside the usable band')
@@ -485,6 +491,8 @@ def main():
                                   'rates': args.rates,
                                   'map_seeds': args.map_seeds,
                                   'measure_seeds': args.measure_seeds,
+                                  'phase1_only': args.phase1_only,
+                                  'mobility': MOBILITY_VERSION,
                                   'note': 'actual operating point of THIS run; '
                                           'the provenance block below reports '
                                           'config_v2.BASE, the parity reference'}, 'scenario': args.scenario,

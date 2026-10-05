@@ -9,6 +9,8 @@ Written after the pre-regeneration audit, which found nine fixes (v12–v22)
 uncommitted and results from three different operating points sitting side by
 side with no marking.
 
+> **v28 (2026-10-04) — mobility fix.** Every result from episodes longer than ~40 s produced before v28 ran on networks that freeze (drones trapped at their waypoints: 37–51% of the 5–15 m/s drones and all sparse_fast / sink_50 drones by 1000 s; DATASET_V3_SPEC §0 #15). That covers the `band_*_1000s*.json` files, `grid_verification.json`, `teacher_choice/` and `bc_data_scaling/` (300 s), `dataset_v3/` and `g4_v3/`. Read them as pre-v28 until re-measured; files written after v28 record `mobility: v28-arrive-on-pass` (the re-measured bands are `band_*_v28.json`; the pre-v28 band files are kept beside them). The 40 s results are essentially unaffected except in sparse_fast. The sparse_fast caveat below (low delivery, loss neither link nor queue) is what a frozen, partitioned network looks like — re-check it on the re-measured band before citing it.
+
 ---
 
 ## CURRENT — safe to cite

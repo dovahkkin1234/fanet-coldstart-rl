@@ -76,6 +76,7 @@ import config_v2 as C                                         # noqa: E402
 import teacher_pickers_v3 as T                                # noqa: E402  (pins at import)
 from simulator_v2 import FANETSimulatorV2, TTL, FRAME_DT, MAX_QUEUE  # noqa: E402
 from generate_dataset_v2 import canonical_candidates          # noqa: E402
+from mobility import MOBILITY_VERSION                          # noqa: E402
 
 RECORD_SCHEMA_VERSION = 1
 EPSILON = 0.10
@@ -93,6 +94,29 @@ SALT_PACKET, SALT_BEHAVIOUR, SALT_CONTEXT, SALT_OWNQ = 1, 2, 3, 4
 GRID_VERIFICATION = os.path.join('results', 'grid_verification.json')
 OWNQ_BASE = 64                     # (context, own queue) pair key = ctx * 64 + length
 assert MAX_QUEUE < OWNQ_BASE <= 127
+
+# v28: CODE SIGNATURE. A shard is valid only for the code that wrote it: every
+# module that shapes an episode (simulator, mobility, link model, teachers,
+# features, config, this generator). Recorded in every shard and the manifest;
+# resume, the manifest, G3.5 v3, the export and the gate compare it with the
+# current code. Line endings are normalised (git on Windows rewrites LF/CRLF).
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+SIGNATURE_MODULES = ('config_v2', 'features_v2', 'generate_dataset_v2', 'generate_dataset_v3',
+                     'link_model_v2', 'mobility', 'models', 'routing_teachers',
+                     'routing_teachers_v2', 'routing_teachers_v3_local', 'simulator_v2',
+                     'teacher_panel', 'teacher_pickers_v3')
+
+
+def code_signature(src_dir=SRC_DIR):
+    h = hashlib.sha256()
+    for name in SIGNATURE_MODULES:
+        h.update(name.encode() + b'\0')
+        with open(os.path.join(src_dir, name + '.py'), 'rb') as f:
+            h.update(f.read().replace(b'\r\n', b'\n'))
+    return h.hexdigest()[:16]
+
+
+CODE_SIGNATURE = code_signature()
 
 _M64 = (1 << 64) - 1
 
@@ -511,6 +535,7 @@ def run_episode(scenario, rate, seed, behaviour, epsilon=EPSILON,
     meta = {
         'complete': True,
         'record_schema_version': RECORD_SCHEMA_VERSION,
+        'code_signature': CODE_SIGNATURE, 'mobility': MOBILITY_VERSION,
         'feature_schema_version': F.FEATURE_SCHEMA_VERSION,
         'key': f'{scenario}@{rate:g}#{seed}',
         'scenario': scenario, 'suite': C.DATASET_GRID[scenario]['suite'],
@@ -569,7 +594,7 @@ def shard_complete(out, scenario, rate, seed):
     except (OSError, ValueError):
         return False
     return bool(m.get('complete')) and m.get('record_schema_version') == RECORD_SCHEMA_VERSION \
-        and 'n_ownq_pairs' in m.get('counts', {})
+        and 'n_ownq_pairs' in m.get('counts', {}) and m.get('code_signature') == CODE_SIGNATURE
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -577,6 +602,21 @@ def load_grid_verification(path):
     if not os.path.isfile(path):
         return None
     return json.load(open(path))
+
+
+def unverified_cells(gv, cells):
+    """Cells that are not PASS in the grid verification. v28: a verification written
+    for another mobility version verifies nothing -- its bands were measured on
+    another simulator."""
+    gv = gv or {}
+    out = []
+    for s, r in cells:
+        st = gv.get('cells', {}).get(f'{s}@{r:g}', {}).get('status')
+        if st == 'PASS' and gv.get('mobility') != MOBILITY_VERSION:
+            st = f"PASS-but-mobility-{gv.get('mobility') or 'pre-v28'}"
+        if st != 'PASS':
+            out.append(f'{s}@{r:g}={st or "missing"}')
+    return out
 
 
 def self_test():
@@ -655,6 +695,16 @@ def main():
     T.assert_pins(verbose=True)
     print('  self-test: canonical cache exact, v6 refuses a missing live own-queue, '
           'packet sample nested  OK')
+    # (multiprocessing aliases __main__ as __mp_main__ in every process that imports it)
+    stray = sorted(n for n, mod in list(sys.modules.items())
+                   if n not in ('__main__', '__mp_main__') and getattr(mod, '__file__', None)
+                   and os.path.dirname(os.path.abspath(mod.__file__)) == SRC_DIR
+                   and n not in SIGNATURE_MODULES)
+    if stray:
+        raise SystemExit(f'  the code signature misses modules the generator loaded: {stray} '
+                         f'-- add them to SIGNATURE_MODULES')
+    print(f'  code signature {CODE_SIGNATURE} (mobility {MOBILITY_VERSION}): shards written '
+          f'by other code are regenerated, never resumed')
 
     if args.manifest_only:
         man = build_manifest(out, smoke=args.smoke)
@@ -675,17 +725,14 @@ def main():
 
     # grid gate
     gv = load_grid_verification(args.grid_verification)
-    unverified = []
-    for s, r in cells:
-        st = (gv or {}).get('cells', {}).get(f'{s}@{r:g}', {}).get('status')
-        if st != 'PASS':
-            unverified.append(f'{s}@{r:g}={st or "missing"}')
+    unverified = unverified_cells(gv, cells)
     if unverified and not (args.allow_unverified_cells or args.smoke):
         raise SystemExit(
             '  GRID GATE: these cells are not PASS in '
             f'{args.grid_verification}:\n    ' + '\n    '.join(unverified) +
-            '\n  Run src\\verify_dataset_grid_v3.py first (sink_50 needs its band '
-            're-measured at 100-300 m), or pass --allow_unverified_cells to '
+            '\n  Run src\\verify_dataset_grid_v3.py first (v28: every band is re-measured '
+            'with the current mobility -- the verifier prints the commands), or pass '
+            '--allow_unverified_cells to '
             'generate them anyway (recorded in the manifest).')
 
     table = behaviour_table()
@@ -723,17 +770,24 @@ def main():
 
 
 def build_manifest(out, smoke=False, unverified=None):
-    metas = []
+    metas, skipped = [], []
     root = os.path.join(out, 'shards')
     for dp, _dn, fn in os.walk(root):
         for f in sorted(fn):
             if f.endswith('.json') and not f.endswith('.tmp'):
                 m = json.load(open(os.path.join(dp, f)))
                 if (m.get('complete') and m.get('record_schema_version') == RECORD_SCHEMA_VERSION
-                        and 'n_ownq_pairs' in m.get('counts', {})):
+                        and 'n_ownq_pairs' in m.get('counts', {})
+                        and m.get('code_signature') == CODE_SIGNATURE):
                     metas.append(m)
                 else:
+                    skipped.append(f)
                     print(f'  manifest: skipping incomplete or stale shard {f}')
+    if skipped and not metas:
+        # v28: rebuilding the manifest of a pre-v28 dataset would silently empty it
+        raise SystemExit(f'  manifest NOT written: all {len(skipped)} shards in {out} are incomplete '
+                         f'or written by other code (current signature {CODE_SIGNATURE}). '
+                         f'Regenerate into a new --out; the existing manifest.json is untouched.')
     metas.sort(key=lambda m: (m['scenario'], m['rate'], m['seed']))
     norm = {}
     for m in metas:
@@ -781,6 +835,7 @@ def build_manifest(out, smoke=False, unverified=None):
                    'decisions': sum(m['counts']['n_recorded_decisions'] for m in metas),
                    'frames': sum(m['counts']['n_frames'] for m in metas),
                    'gb': sum(m['bytes'] for m in metas) / 1e9},
+        'code_signature': CODE_SIGNATURE, 'mobility': MOBILITY_VERSION,
         'generator_sha256_16': hashlib.sha256(open(__file__, 'rb').read()).hexdigest()[:16],
         'created': time.strftime('%Y-%m-%d %H:%M:%S'),
     }

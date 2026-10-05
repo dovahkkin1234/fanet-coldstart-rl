@@ -440,8 +440,18 @@ def check_schema(man):
     p = []
     if man.get('record_schema_version') != G.RECORD_SCHEMA_VERSION:
         p.append(f"record_schema_version {man.get('record_schema_version')} != {G.RECORD_SCHEMA_VERSION}")
+    if man.get('code_signature') != G.CODE_SIGNATURE:
+        p.append(f"dataset written by other code: signature "
+                 f"{man.get('code_signature') or 'none (pre-v28)'} != current "
+                 f"{G.CODE_SIGNATURE} -- regenerate it (v28: mobility fix)")
     p += F.assert_manifest_compatible(man, context='G3.5v3')
     return p
+
+
+def check_signatures(shard_sigs, man):
+    """v28: every shard must come from the code the manifest names."""
+    bad = sorted({str(s) for s in shard_sigs if s != man.get('code_signature')})
+    return [f'shards written by other code than the manifest: {bad}'] if bad else []
 
 
 def repro(data, meta):
@@ -487,6 +497,7 @@ def main():
     eps_n = eps_f = 0
     rng = np.random.default_rng(1)
     nc_ok = True
+    shard_sigs = []
     t0 = time.time()
     for i, e in enumerate(eps):
         meta = json.load(open(os.path.join(args.data, e['shard'].replace('.npz', '.json'))))
@@ -506,6 +517,7 @@ def main():
             probs['4 behaviour'].append(f"{e['key']}: {msg}")
         if norm.setdefault(meta['scenario'], meta['norm_constants']) != meta['norm_constants']:
             nc_ok = False
+        shard_sigs.append(meta.get('code_signature'))
         eps_n += meta['counts']['n_recorded_decisions']
         eps_f += meta['counts']['n_eps_fired']
         cell = f"{meta['scenario']}@{meta['rate']:g}"
@@ -542,6 +554,10 @@ def main():
     if not nc_ok:
         results['0 schema'] = False
         details['0 schema'].append('norm constants differ between episodes of a scenario')
+    sig_probs = check_signatures(shard_sigs, man)
+    if sig_probs:
+        results['0 schema'] = False
+        details['0 schema'] += sig_probs
     pooled = eps_f / max(eps_n, 1)
     if abs(pooled - G.EPSILON) > EPS_TOL_POOLED:
         results['4 behaviour'] = False

@@ -89,6 +89,7 @@ from simulator_v2 import FANETSimulatorV2, TTL
 from config_v2 import BASE, SCENARIOS
 from generate_dataset_v2 import canonical_candidates
 import inspect
+from mobility import MOBILITY_VERSION                     # v28
 
 # v26 COMPATIBILITY. Everything in this test is feature schema v5 (frame-start
 # snapshot own queue): its data, its models and its rollouts. After the v26 patch
@@ -699,6 +700,7 @@ def stage_analyze(args):
 
     xe = _load(args, 'cross_eval.json', {})
     out = {'operating_point': {'duration': args.duration, 'z': [args.z_min, args.z_max],
+                               'mobility': MOBILITY_VERSION,
                                'initial_energy': args.initial_energy,
                                'cells': CELLS}}
     seeds = list(args.rollout_seeds)
@@ -909,6 +911,14 @@ def main():
     print('  drift pins: restricted pickers == real teachers (300 graphs), and the '
           'pin FAILS on two broken pickers  OK')
     os.makedirs(args.out, exist_ok=True)
+    # v28: never mix simulators in one output folder (the mobility fix changes every
+    # trajectory longer than ~30 s)
+    prev = _load(args, 'config.json', None)
+    if prev is not None and prev.get('mobility') != MOBILITY_VERSION:
+        raise SystemExit(f"  {args.out} was produced with mobility "
+                         f"{prev.get('mobility') or 'pre-v28 (waypoint trapping)'}; this "
+                         f'simulator is {MOBILITY_VERSION}. Use a new --out.')
+    args.mobility = MOBILITY_VERSION
     _save(args, 'config.json', vars(args))
 
     t0 = time.time()
