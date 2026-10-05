@@ -1,0 +1,37 @@
+{
+ "S_dij_ms:2000": {
+  "val_contested": 0.6458394160583941,
+  "epochs": 2,
+  "n_train": 5987,
+  "n_val": 4783,
+  "seconds": 3.2546002864837646
+ },
+ "S_da_ms:2000": {
+  "val_contested": 0.5730191130079793,
+  "epochs": 2,
+  "n_train": 8655,
+  "n_val": 6714,
+  "seconds": 0.12803888320922852
+ },
+ "GLOBAL:2000": {
+  "val_contested": 0.46397221954277995,
+  "epochs": 2,
+  "n_train": 20472,
+  "n_val": 16583,
+  "seconds": 0.7705857753753662
+ },
+ "PERCELL:2000": {
+  "val_contested": 0.37605617041532785,
+  "epochs": 2,
+  "n_train": 17804,
+  "n_val": 14652,
+  "seconds": 0.6286594867706299
+ },
+ "GLOBAL_HO:2000": {
+  "val_contested": 0.16773804740859782,
+  "epochs": 2,
+  "n_train": 11817,
+  "n_val": 9869,
+  "seconds": 0.45577239990234375
+ }
+}

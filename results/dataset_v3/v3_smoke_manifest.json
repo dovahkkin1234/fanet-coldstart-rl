@@ -1,0 +1,540 @@
+{
+ "dataset": "FANET Dataset V3",
+ "spec": "docs/DATASET_V3_SPEC.md",
+ "record_schema_version": 1,
+ "feature_schema_version": 6,
+ "node_features": [
+  "x",
+  "y",
+  "z",
+  "vx",
+  "vy",
+  "vz",
+  "queue_occupancy",
+  "energy",
+  "degree"
+ ],
+ "edge_features": [
+  "distance",
+  "link_quality",
+  "estimated_link_lifetime",
+  "relative_velocity"
+ ],
+ "query_features": [
+  "ttl_left",
+  "dist_to_dest",
+  "own_queue_live",
+  "neigh_buffered_packets",
+  "neigh_mean_occupancy",
+  "hop_distance_to_dst"
+ ],
+ "candidate_features": [
+  "progress",
+  "cand_hop_distance",
+  "is_destination",
+  "cand_reachable"
+ ],
+ "local_horizon": 2,
+ "label_teacher": "da_gpsr",
+ "vote_teachers": [
+  "dijkstra",
+  "gpsr",
+  "spbp"
+ ],
+ "behaviour": {
+  "other_share": 0.3,
+  "other_teachers": [
+   "gpsr",
+   "spbp",
+   "dijkstra_nodrop"
+  ],
+  "table": {
+   "101": "gpsr",
+   "102": "da_gpsr",
+   "103": "da_gpsr",
+   "104": "da_gpsr",
+   "105": "da_gpsr",
+   "106": "da_gpsr",
+   "107": "da_gpsr",
+   "108": "gpsr",
+   "109": "da_gpsr",
+   "110": "da_gpsr",
+   "111": "da_gpsr",
+   "112": "gpsr",
+   "113": "da_gpsr",
+   "114": "spbp",
+   "115": "gpsr",
+   "116": "spbp",
+   "117": "spbp",
+   "118": "da_gpsr",
+   "119": "dijkstra_nodrop",
+   "120": "spbp",
+   "121": "da_gpsr",
+   "122": "da_gpsr",
+   "123": "da_gpsr",
+   "124": "da_gpsr",
+   "125": "dijkstra_nodrop",
+   "126": "da_gpsr",
+   "127": "da_gpsr",
+   "128": "dijkstra_nodrop",
+   "129": "da_gpsr",
+   "130": "da_gpsr",
+   "131": "da_gpsr",
+   "132": "da_gpsr",
+   "133": "da_gpsr",
+   "134": "da_gpsr",
+   "135": "da_gpsr",
+   "136": "da_gpsr",
+   "137": "da_gpsr",
+   "138": "dijkstra_nodrop",
+   "139": "da_gpsr",
+   "140": "da_gpsr",
+   "141": "gpsr",
+   "142": "da_gpsr",
+   "143": "da_gpsr",
+   "144": "da_gpsr",
+   "145": "da_gpsr",
+   "146": "da_gpsr",
+   "147": "dijkstra_nodrop",
+   "148": "da_gpsr",
+   "149": "da_gpsr",
+   "150": "spbp"
+  },
+  "epsilon": 0.1
+ },
+ "rl_packet_frac": [
+  0.1
+ ],
+ "hash": {
+  "function": "splitmix64",
+  "salts": {
+   "packet": 1,
+   "behaviour": 2,
+   "context": 3,
+   "own_queue": 4
+  }
+ },
+ "codebooks": {
+  "hop_outcome": [
+   "moved",
+   "delivered",
+   "link_error",
+   "queue_overflow",
+   "energy_depleted",
+   "policy_drop"
+  ],
+  "fate": [
+   "delivered",
+   "queue_overflow",
+   "link_error",
+   "ttl_expired",
+   "no_route",
+   "energy_depleted",
+   "episode_end"
+  ],
+  "action_drop": -1,
+  "votes": [
+   "dijkstra",
+   "gpsr",
+   "spbp"
+  ],
+  "f_cum": [
+   "n_generated",
+   "n_delivered",
+   "n_dropped",
+   "queue_overflow",
+   "link_error",
+   "ttl_expired",
+   "no_route",
+   "energy_depleted",
+   "episode_end"
+  ]
+ },
+ "provenance": {
+  "operating_point": {
+   "z_min": 100,
+   "z_max": 300,
+   "duration": 1000.0,
+   "drain_time": 10.0,
+   "interference_on": true,
+   "initial_energy": 8000.0
+  },
+  "grid": {
+   "dense_slow": {
+    "suite": "A",
+    "anchor": [
+     40.0
+    ],
+    "band": [
+     60.0,
+     80.0,
+     100.0
+    ]
+   },
+   "very_dense": {
+    "suite": "A",
+    "anchor": [
+     40.0
+    ],
+    "band": [
+     60.0,
+     80.0
+    ]
+   },
+   "medium_slow": {
+    "suite": "A",
+    "anchor": [
+     30.0
+    ],
+    "band": [
+     40.0,
+     60.0,
+     80.0
+    ]
+   },
+   "sparse_fast": {
+    "suite": "A",
+    "anchor": [
+     40.0
+    ],
+    "band": [
+     80.0,
+     100.0
+    ]
+   },
+   "sink_50": {
+    "suite": "C",
+    "anchor": [
+     20.0
+    ],
+    "band": [
+     30.0
+    ]
+   }
+  },
+  "seeds": [
+   101,
+   150
+  ],
+  "splits": {
+   "train": [
+    101,
+    135
+   ],
+   "val": [
+    136,
+    142
+   ],
+   "test": [
+    143,
+    150
+   ]
+  },
+  "generalisation_scenario": "medium_slow",
+  "parity_reference_base": {
+   "z_min": 50,
+   "z_max": 150,
+   "duration": 40.0,
+   "drain_time": 10.0,
+   "interference_on": true
+  },
+  "config_module": "config_v2"
+ },
+ "split_plan": {
+  "train_seeds": [
+   101,
+   135
+  ],
+  "val_seeds": [
+   136,
+   142
+  ],
+  "test_seeds": [
+   143,
+   150
+  ],
+  "generalisation_scenario": "medium_slow"
+ },
+ "norm_constants_per_scenario": {
+  "dense_slow": {
+   "area_x": 800.0,
+   "area_y": 800.0,
+   "z_min": 100.0,
+   "z_max": 300.0,
+   "speed_max": 15.0,
+   "comm_range": 250.0,
+   "max_queue": 50.0,
+   "initial_energy": 8000.0,
+   "ttl": 20.0,
+   "lifetime_ref": 60.0,
+   "hop_cap": 10.0,
+   "buffered_ref": 300.0,
+   "degree_ref": 29.0,
+   "local_horizon": 2,
+   "schema_version": 6
+  },
+  "medium_slow": {
+   "area_x": 1300.0,
+   "area_y": 1300.0,
+   "z_min": 100.0,
+   "z_max": 300.0,
+   "speed_max": 15.0,
+   "comm_range": 280.0,
+   "max_queue": 50.0,
+   "initial_energy": 8000.0,
+   "ttl": 20.0,
+   "lifetime_ref": 60.0,
+   "hop_cap": 10.0,
+   "buffered_ref": 300.0,
+   "degree_ref": 29.0,
+   "local_horizon": 2,
+   "schema_version": 6
+  },
+  "sink_50": {
+   "area_x": 1000.0,
+   "area_y": 1000.0,
+   "z_min": 100.0,
+   "z_max": 300.0,
+   "speed_max": 30.0,
+   "comm_range": 250.0,
+   "max_queue": 50.0,
+   "initial_energy": 8000.0,
+   "ttl": 20.0,
+   "lifetime_ref": 60.0,
+   "hop_cap": 10.0,
+   "buffered_ref": 300.0,
+   "degree_ref": 49.0,
+   "local_horizon": 2,
+   "schema_version": 6
+  },
+  "sparse_fast": {
+   "area_x": 1500.0,
+   "area_y": 1500.0,
+   "z_min": 100.0,
+   "z_max": 300.0,
+   "speed_max": 50.0,
+   "comm_range": 300.0,
+   "max_queue": 50.0,
+   "initial_energy": 8000.0,
+   "ttl": 20.0,
+   "lifetime_ref": 60.0,
+   "hop_cap": 10.0,
+   "buffered_ref": 300.0,
+   "degree_ref": 19.0,
+   "local_horizon": 2,
+   "schema_version": 6
+  },
+  "very_dense": {
+   "area_x": 700.0,
+   "area_y": 700.0,
+   "z_min": 100.0,
+   "z_max": 300.0,
+   "speed_max": 15.0,
+   "comm_range": 250.0,
+   "max_queue": 50.0,
+   "initial_energy": 8000.0,
+   "ttl": 20.0,
+   "lifetime_ref": 60.0,
+   "hop_cap": 10.0,
+   "buffered_ref": 300.0,
+   "degree_ref": 44.0,
+   "local_horizon": 2,
+   "schema_version": 6
+  }
+ },
+ "smoke": true,
+ "unverified_cells_generated": [],
+ "episodes": [
+  {
+   "key": "dense_slow@100#101",
+   "shard": "shards/dense_slow/dense_slow_r100_s101.npz",
+   "scenario": "dense_slow",
+   "rate": 100.0,
+   "rate_index": 3,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 101,
+   "split": "train",
+   "behaviour": "gpsr",
+   "bytes": 902952,
+   "n_contexts": 7679,
+   "n_ownq_pairs": 31872,
+   "n_steps": 5136,
+   "n_decisions": 51635,
+   "pdr": 0.3372102992026977
+  },
+  {
+   "key": "dense_slow@100#136",
+   "shard": "shards/dense_slow/dense_slow_r100_s136.npz",
+   "scenario": "dense_slow",
+   "rate": 100.0,
+   "rate_index": 3,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 136,
+   "split": "val",
+   "behaviour": "da_gpsr",
+   "bytes": 753252,
+   "n_contexts": 5693,
+   "n_ownq_pairs": 31209,
+   "n_steps": 4256,
+   "n_decisions": 42425,
+   "pdr": 0.4465750292915726
+  },
+  {
+   "key": "medium_slow@80#101",
+   "shard": "shards/medium_slow/medium_slow_r80_s101.npz",
+   "scenario": "medium_slow",
+   "rate": 80.0,
+   "rate_index": 3,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 101,
+   "split": "train",
+   "behaviour": "gpsr",
+   "bytes": 651302,
+   "n_contexts": 9362,
+   "n_ownq_pairs": 28833,
+   "n_steps": 5054,
+   "n_decisions": 51797,
+   "pdr": 0.2563140785196299
+  },
+  {
+   "key": "medium_slow@80#136",
+   "shard": "shards/medium_slow/medium_slow_r80_s136.npz",
+   "scenario": "medium_slow",
+   "rate": 80.0,
+   "rate_index": 3,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 136,
+   "split": "val",
+   "behaviour": "da_gpsr",
+   "bytes": 573459,
+   "n_contexts": 6812,
+   "n_ownq_pairs": 30499,
+   "n_steps": 5419,
+   "n_decisions": 53555,
+   "pdr": 0.4799414139249098
+  },
+  {
+   "key": "sink_50@30#101",
+   "shard": "shards/sink_50/sink_50_r30_s101.npz",
+   "scenario": "sink_50",
+   "rate": 30.0,
+   "rate_index": 1,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 101,
+   "split": "train",
+   "behaviour": "gpsr",
+   "bytes": 958643,
+   "n_contexts": 5789,
+   "n_ownq_pairs": 25156,
+   "n_steps": 3089,
+   "n_decisions": 31252,
+   "pdr": 0.7326666666666667
+  },
+  {
+   "key": "sink_50@30#136",
+   "shard": "shards/sink_50/sink_50_r30_s136.npz",
+   "scenario": "sink_50",
+   "rate": 30.0,
+   "rate_index": 1,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 136,
+   "split": "val",
+   "behaviour": "da_gpsr",
+   "bytes": 926108,
+   "n_contexts": 5959,
+   "n_ownq_pairs": 24922,
+   "n_steps": 3404,
+   "n_decisions": 33707,
+   "pdr": 0.7151666666666666
+  },
+  {
+   "key": "sparse_fast@100#101",
+   "shard": "shards/sparse_fast/sparse_fast_r100_s101.npz",
+   "scenario": "sparse_fast",
+   "rate": 100.0,
+   "rate_index": 2,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 101,
+   "split": "train",
+   "behaviour": "gpsr",
+   "bytes": 354612,
+   "n_contexts": 5314,
+   "n_ownq_pairs": 22103,
+   "n_steps": 4059,
+   "n_decisions": 39794,
+   "pdr": 0.31442288457691536
+  },
+  {
+   "key": "sparse_fast@100#136",
+   "shard": "shards/sparse_fast/sparse_fast_r100_s136.npz",
+   "scenario": "sparse_fast",
+   "rate": 100.0,
+   "rate_index": 2,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 136,
+   "split": "val",
+   "behaviour": "da_gpsr",
+   "bytes": 250746,
+   "n_contexts": 3051,
+   "n_ownq_pairs": 19451,
+   "n_steps": 3961,
+   "n_decisions": 36531,
+   "pdr": 0.09361872374474894
+  },
+  {
+   "key": "very_dense@80#101",
+   "shard": "shards/very_dense/very_dense_r80_s101.npz",
+   "scenario": "very_dense",
+   "rate": 80.0,
+   "rate_index": 2,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 101,
+   "split": "train",
+   "behaviour": "gpsr",
+   "bytes": 1879200,
+   "n_contexts": 6741,
+   "n_ownq_pairs": 47284,
+   "n_steps": 5926,
+   "n_decisions": 58169,
+   "pdr": 0.5444997613039624
+  },
+  {
+   "key": "very_dense@80#136",
+   "shard": "shards/very_dense/very_dense_r80_s136.npz",
+   "scenario": "very_dense",
+   "rate": 80.0,
+   "rate_index": 2,
+   "rate_role": "band",
+   "load_bucket": "high",
+   "seed": 136,
+   "split": "val",
+   "behaviour": "da_gpsr",
+   "bytes": 2036851,
+   "n_contexts": 8898,
+   "n_ownq_pairs": 47063,
+   "n_steps": 6198,
+   "n_decisions": 60943,
+   "pdr": 0.46211552888222057
+  }
+ ],
+ "totals": {
+  "episodes": 10,
+  "contexts": 65298,
+  "ownq_pairs": 308392,
+  "steps": 46502,
+  "decisions": 459808,
+  "frames": 1200,
+  "gb": 0.009287125
+ },
+ "generator_sha256_16": "074d39be61937b3a",
+ "created": "2026-10-04 01:34:53"
+}

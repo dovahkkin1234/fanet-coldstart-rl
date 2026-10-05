@@ -1,0 +1,24 @@
+{
+ "stage": "all",
+ "out": "results/teacher_choice_smoke",
+ "duration": 30.0,
+ "z_min": 100.0,
+ "z_max": 300.0,
+ "initial_energy": 8000.0,
+ "epsilon": 0.1,
+ "record_prob": 0.3,
+ "train_seeds": [
+  101
+ ],
+ "val_seeds": [
+  136
+ ],
+ "rollout_seeds": [
+  1,
+  2
+ ],
+ "model_seeds": 1,
+ "max_workers": 8,
+ "device": "cuda",
+ "smoke": true
+}

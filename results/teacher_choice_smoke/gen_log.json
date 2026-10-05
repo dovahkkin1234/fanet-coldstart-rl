@@ -1,0 +1,82 @@
+[
+ {
+  "scen": "dense_slow",
+  "teacher": "da_gpsr",
+  "seed": 136,
+  "n_dec": 3301,
+  "n_frames": 40,
+  "pdr": 0.7325,
+  "unreachable": 0,
+  "seconds": 7.388399839401245
+ },
+ {
+  "scen": "medium_slow",
+  "teacher": "dijkstra",
+  "seed": 136,
+  "n_dec": 4783,
+  "n_frames": 41,
+  "pdr": 0.44845238095238094,
+  "unreachable": 714,
+  "seconds": 8.917267322540283
+ },
+ {
+  "scen": "medium_slow",
+  "teacher": "dijkstra",
+  "seed": 101,
+  "n_dec": 5987,
+  "n_frames": 42,
+  "pdr": 0.2261904761904762,
+  "unreachable": 50,
+  "seconds": 11.800756454467773
+ },
+ {
+  "scen": "medium_slow",
+  "teacher": "da_gpsr",
+  "seed": 136,
+  "n_dec": 6714,
+  "n_frames": 41,
+  "pdr": 0.4452380952380952,
+  "unreachable": 0,
+  "seconds": 11.904873847961426
+ },
+ {
+  "scen": "dense_slow",
+  "teacher": "da_gpsr",
+  "seed": 101,
+  "n_dec": 5574,
+  "n_frames": 41,
+  "pdr": 0.5322619047619047,
+  "unreachable": 0,
+  "seconds": 12.676992654800415
+ },
+ {
+  "scen": "medium_slow",
+  "teacher": "da_gpsr",
+  "seed": 101,
+  "n_dec": 8655,
+  "n_frames": 41,
+  "pdr": 0.2863095238095238,
+  "unreachable": 0,
+  "seconds": 15.716077089309692
+ },
+ {
+  "scen": "very_dense",
+  "teacher": "da_gpsr",
+  "seed": 101,
+  "n_dec": 6243,
+  "n_frames": 41,
+  "pdr": 0.6218181818181818,
+  "unreachable": 0,
+  "seconds": 25.006391048431396
+ },
+ {
+  "scen": "very_dense",
+  "teacher": "da_gpsr",
+  "seed": 136,
+  "n_dec": 6568,
+  "n_frames": 40,
+  "pdr": 0.574469696969697,
+  "unreachable": 0,
+  "seconds": 25.416018962860107
+ }
+]

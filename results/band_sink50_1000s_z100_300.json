@@ -1,0 +1,188 @@
+{
+  "schema": "congestion_band_convergecast_v1",
+  "run_params": {
+    "duration": 1000.0,
+    "initial_energy": 8000.0,
+    "z_min": 100,
+    "z_max": 300,
+    "rates": [
+      20.0,
+      30.0,
+      40.0,
+      50.0,
+      60.0
+    ],
+    "map_seeds": 3,
+    "measure_seeds": 15,
+    "note": "actual operating point of THIS run; the provenance block below reports config_v2.BASE, the parity reference"
+  },
+  "scenario": "sink_50",
+  "duration": 1000.0,
+  "initial_energy": 8000.0,
+  "criteria": {
+    "elastic_lo": 0.05,
+    "elastic_hi": 0.85,
+    "min_qovf": 0.02,
+    "max_energy": 0.05
+  },
+  "provenance": {
+    "duration": 40.0,
+    "drain_time": 10.0,
+    "z_min": 50,
+    "z_max": 150,
+    "interference_on": true,
+    "rates": [
+      0.5,
+      2.0,
+      4.0
+    ],
+    "scenarios": [
+      "dense_slow",
+      "medium_slow",
+      "sparse_fast",
+      "very_dense"
+    ],
+    "config_module": "config_v2"
+  },
+  "curve": [
+    {
+      "rate": 20.0,
+      "offered": 240.0,
+      "delivered": 209015.33333333334,
+      "generated": 237600.0,
+      "pdr": 0.8796941638608304,
+      "q_ovf": 0.00656986531986532,
+      "energy": 0.0,
+      "link": 0.11201038159371494,
+      "dead": 0.0,
+      "sink_energy_frac": 0.738605833327605,
+      "elasticity": NaN,
+      "usable": false
+    },
+    {
+      "rate": 30.0,
+      "offered": 360.0,
+      "delivered": 234364.0,
+      "generated": 356400.0,
+      "pdr": 0.6575869809203142,
+      "q_ovf": 0.06176767676767677,
+      "energy": 0.0,
+      "link": 0.27891975308641975,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7069199999935799,
+      "elasticity": 0.24255317791677156,
+      "usable": true
+    },
+    {
+      "rate": 40.0,
+      "offered": 480.0,
+      "delivered": 228697.66666666666,
+      "generated": 475188.0,
+      "pdr": 0.48127828704989745,
+      "q_ovf": 0.0964320086646408,
+      "energy": 0.0,
+      "link": 0.42056407148328656,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7140029166604012,
+      "elasticity": -0.07253247085729903,
+      "usable": false
+    },
+    {
+      "rate": 50.0,
+      "offered": 600.0,
+      "delivered": 222750.0,
+      "generated": 593988.0,
+      "pdr": 0.37500757591062445,
+      "q_ovf": 0.1349539047926894,
+      "energy": 0.0,
+      "link": 0.48831289521000426,
+      "dead": 0.0,
+      "sink_energy_frac": 0.7214374999938968,
+      "elasticity": -0.10402671357964574,
+      "usable": false
+    },
+    {
+      "rate": 60.0,
+      "offered": 720.0,
+      "delivered": 207310.0,
+      "generated": 712800.0,
+      "pdr": 0.29083894500561164,
+      "q_ovf": 0.18194491208380095,
+      "energy": 0.0023578376356154134,
+      "link": 0.5231083988028432,
+      "dead": 0.3333333333333333,
+      "sink_energy_frac": 0.7407374999943181,
+      "elasticity": -0.34657687991021324,
+      "usable": false
+    }
+  ],
+  "results": {
+    "30.0": {
+      "spbp_ab_noqueue": {
+        "pdr": 0.6534070332959221,
+        "delta": 0.0,
+        "ci_lo": 0.0,
+        "ci_hi": 0.0,
+        "p_raw": 1.0,
+        "consistency": 0.0,
+        "delivered": 232874.26666666666,
+        "mean_hops": 2.3766619808926053,
+        "n_zero_delivery_seeds": 0
+      },
+      "spbp_ab_full": {
+        "pdr": 0.6805476992143659,
+        "delta": 0.027140665918443708,
+        "ci_lo": -0.0005683294576391759,
+        "ci_hi": 0.05484966129452659,
+        "p_raw": 0.05425321515608262,
+        "consistency": 0.7333333333333333,
+        "delivered": 242547.2,
+        "mean_hops": 2.5939777674454705,
+        "n_zero_delivery_seeds": 0,
+        "p_holm_flat": 0.05425321515608262,
+        "significant_flat": false,
+        "p_holm_tier1": 0.05425321515608262,
+        "significant_tier1": false,
+        "p_holm_tier2": NaN,
+        "significant_tier2": false,
+        "significant": false
+      },
+      "spbp_ab_candqueue": {
+        "pdr": 0.6884739992517772,
+        "delta": 0.03506696595585486,
+        "ci_lo": 0.011372194301082272,
+        "ci_hi": 0.058761737610627446,
+        "p_raw": 0.0067589820696189445,
+        "consistency": 0.8666666666666667,
+        "delivered": 245372.13333333333,
+        "mean_hops": 2.603488812117115,
+        "n_zero_delivery_seeds": 0,
+        "p_holm_flat": 0.013517964139237889,
+        "significant_flat": true,
+        "p_holm_tier1": NaN,
+        "significant_tier1": false,
+        "p_holm_tier2": 0.0067589820696189445,
+        "significant_tier2": true,
+        "significant": true
+      },
+      "spbp_ab_additive": {
+        "pdr": 0.6942027684249905,
+        "delta": 0.040795735129068464,
+        "ci_lo": 0.020933919245172492,
+        "ci_hi": 0.06065755101296444,
+        "p_raw": 0.0005986253686943686,
+        "consistency": 1.0,
+        "delivered": 247413.86666666667,
+        "mean_hops": 2.619289457547339,
+        "n_zero_delivery_seeds": 0,
+        "p_holm_flat": 0.001795876106083106,
+        "significant_flat": true,
+        "p_holm_tier1": NaN,
+        "significant_tier1": false,
+        "p_holm_tier2": 0.0011972507373887373,
+        "significant_tier2": true,
+        "significant": true
+      }
+    }
+  }
+}

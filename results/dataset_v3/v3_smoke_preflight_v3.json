@@ -1,0 +1,63 @@
+{
+ "results": {
+  "0 schema": true,
+  "1 structure": true,
+  "2 labels": true,
+  "9 dedup": true,
+  "10 chains": true,
+  "11 sampling": true,
+  "12 counters": true,
+  "4 behaviour": true,
+  "5 coverage": true,
+  "6 features": true,
+  "8 redundancy": true,
+  "7 reproducible": true
+ },
+ "details": {
+  "0 schema": [],
+  "1 structure": [],
+  "2 labels": [],
+  "9 dedup": [],
+  "10 chains": [],
+  "11 sampling": [],
+  "12 counters": [],
+  "4 behaviour": [],
+  "5 coverage": [],
+  "6 features": [],
+  "8 redundancy": [],
+  "7 reproducible": [
+   "sink_50@30#101: all 47 arrays identical (29s)"
+  ]
+ },
+ "mix": {
+  "train": {
+   "gpsr": 5
+  },
+  "val": {
+   "da_gpsr": 5
+  }
+ },
+ "pooled_epsilon": 0.10125530656273923,
+ "own_queue": {
+  "dense_slow@100": {
+   "share_differing_from_first": 0.6622368700829258,
+   "mean_first_minus_decision": 11.332224112268765
+  },
+  "medium_slow@80": {
+   "share_differing_from_first": 0.5726896499354545,
+   "mean_first_minus_decision": 6.1917191890044805
+  },
+  "sink_50@30": {
+   "share_differing_from_first": 0.6889884388614357,
+   "mean_first_minus_decision": 3.991825613079019
+  },
+  "sparse_fast@100": {
+   "share_differing_from_first": 0.6521454307238782,
+   "mean_first_minus_decision": 8.135722240419259
+  },
+  "very_dense@80": {
+   "share_differing_from_first": 0.7435019141648197,
+   "mean_first_minus_decision": 12.04777856135402
+  }
+ }
+}

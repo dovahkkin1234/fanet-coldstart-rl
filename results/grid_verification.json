@@ -1,0 +1,360 @@
+{
+ "operating_point": {
+  "z_min": 100,
+  "z_max": 300,
+  "duration": 1000.0,
+  "drain_time": 10.0,
+  "interference_on": true,
+  "initial_energy": 8000.0
+ },
+ "grid": {
+  "dense_slow": {
+   "suite": "A",
+   "anchor": [
+    40.0
+   ],
+   "band": [
+    60.0,
+    80.0,
+    100.0
+   ]
+  },
+  "very_dense": {
+   "suite": "A",
+   "anchor": [
+    40.0
+   ],
+   "band": [
+    60.0,
+    80.0
+   ]
+  },
+  "medium_slow": {
+   "suite": "A",
+   "anchor": [
+    30.0
+   ],
+   "band": [
+    40.0,
+    60.0,
+    80.0
+   ]
+  },
+  "sparse_fast": {
+   "suite": "A",
+   "anchor": [
+    40.0
+   ],
+   "band": [
+    80.0,
+    100.0
+   ]
+  },
+  "sink_50": {
+   "suite": "C",
+   "anchor": [
+    20.0
+   ],
+   "band": [
+    30.0
+   ]
+  }
+ },
+ "cells": {
+  "dense_slow@40": {
+   "status": "PASS",
+   "role": "anchor",
+   "reason": "below the band (lowest usable 60.0)",
+   "band_file": "band_dense_slow_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.03701271917641018,
+   "reference_pdr": 0.8331944409370607,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.8561495660664832,
+    "q_ovf": 0.006842404630227557,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "dense_slow@60": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_dense_slow_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.0990508257174924,
+   "reference_pdr": 0.6393049543049543,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.6900392817059484,
+    "q_ovf": 0.027081930415263748,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "dense_slow@80": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_dense_slow_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.15825716895174843,
+   "reference_pdr": 0.5107381706959985,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.5593228389728345,
+    "q_ovf": 0.084786424071011,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "dense_slow@100": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_dense_slow_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.19240117384543087,
+   "reference_pdr": 0.43601065715430504,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.46391281489615815,
+    "q_ovf": 0.1551982968562934,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "very_dense@40": {
+   "status": "PASS",
+   "role": "anchor",
+   "reason": "below the band (lowest usable 60.0)",
+   "band_file": "band_very_dense_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.022564848974606793,
+   "reference_pdr": 0.7144510077159891,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.7290595798638931,
+    "q_ovf": 0.00040022437052665083,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "very_dense@60": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_very_dense_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.06917559432710947,
+   "reference_pdr": 0.5145622895622896,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.5539720436690133,
+    "q_ovf": 0.02515151515151515,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "very_dense@80": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_very_dense_1000s.json",
+   "usable_rates": [
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.11708060286956486,
+   "reference_pdr": 0.39246592874795244,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.44075357547749877,
+    "q_ovf": 0.0608187966866738,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "medium_slow@30": {
+   "status": "PASS",
+   "role": "anchor",
+   "reason": "below the band (lowest usable 40.0)",
+   "band_file": "band_medium_slow_1000s.json",
+   "usable_rates": [
+    40.0,
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.05091229757896424,
+   "reference_pdr": 0.6887397787397788,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.6624579124579124,
+    "q_ovf": 0.0316370049703383,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "medium_slow@40": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_medium_slow_1000s.json",
+   "usable_rates": [
+    40.0,
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.08119372903837158,
+   "reference_pdr": 0.5973792026975188,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.5761400901177158,
+    "q_ovf": 0.03986873165387774,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "medium_slow@60": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_medium_slow_1000s.json",
+   "usable_rates": [
+    40.0,
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.14052429052429052,
+   "reference_pdr": 0.4441758858425526,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.41788680455347116,
+    "q_ovf": 0.09367724867724868,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "medium_slow@80": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_medium_slow_1000s.json",
+   "usable_rates": [
+    40.0,
+    60.0,
+    80.0
+   ],
+   "reference_q_ovf": 0.1977405919627412,
+   "reference_pdr": 0.3489077243038783,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.31918452553814114,
+    "q_ovf": 0.18836457170274515,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "sparse_fast@40": {
+   "status": "PASS",
+   "role": "anchor",
+   "reason": "below the band (lowest usable 80.0)",
+   "band_file": "band_sparse_fast_1000s.json",
+   "usable_rates": [
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.0039209744353813645,
+   "reference_pdr": 0.33479801678493565,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.317816106467335,
+    "q_ovf": 0.043881579501165856,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "sparse_fast@80": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_sparse_fast_1000s.json",
+   "usable_rates": [
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.08123250714445047,
+   "reference_pdr": 0.30297268063148947,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.2539358661935967,
+    "q_ovf": 0.288751962356427,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "sparse_fast@100": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_sparse_fast_1000s.json",
+   "usable_rates": [
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.10690815058737967,
+   "reference_pdr": 0.2937255258470624,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.2306871786583703,
+    "q_ovf": 0.36263733303703405,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "sink_50@20": {
+   "status": "PASS",
+   "role": "anchor",
+   "reason": "below the band (lowest usable 30.0)",
+   "band_file": "band_sink50_1000s_z100_300.json",
+   "usable_rates": [
+    30.0
+   ],
+   "reference_q_ovf": 0.00656986531986532,
+   "reference_pdr": 0.8796941638608304,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.8956158810325476,
+    "q_ovf": 0.00039421997755331094,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  },
+  "sink_50@30": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_sink50_1000s_z100_300.json",
+   "usable_rates": [
+    30.0
+   ],
+   "reference_q_ovf": 0.06176767676767677,
+   "reference_pdr": 0.6575869809203142,
+   "da_gpsr_diagnostic": {
+    "pdr": 0.7078058361391695,
+    "q_ovf": 0.006040965207631875,
+    "energy": 0.0,
+    "dead": 0.0
+   }
+  }
+ },
+ "created": "2026-10-04 00:52:25"
+}
