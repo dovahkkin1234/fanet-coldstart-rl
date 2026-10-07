@@ -46,6 +46,7 @@
     40.0
    ],
    "band": [
+    60.0,
     80.0,
     100.0
    ]
@@ -56,7 +57,8 @@
     20.0
    ],
    "band": [
-    30.0
+    30.0,
+    40.0
    ]
   }
  },
@@ -72,13 +74,7 @@
     100.0
    ],
    "reference_q_ovf": 0.03902214942897789,
-   "reference_pdr": 0.8346543142623851,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.8641993123924486,
-    "q_ovf": 0.006318100865942984,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.8346543142623851
   },
   "dense_slow@60": {
    "status": "PASS",
@@ -91,13 +87,7 @@
     100.0
    ],
    "reference_q_ovf": 0.09606782106782108,
-   "reference_pdr": 0.6450593233926568,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.7079260862594197,
-    "q_ovf": 0.01928090428090428,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.6450593233926568
   },
   "dense_slow@80": {
    "status": "PASS",
@@ -110,13 +100,7 @@
     100.0
    ],
    "reference_q_ovf": 0.1550542665581997,
-   "reference_pdr": 0.5211104757816206,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.5853170344262403,
-    "q_ovf": 0.0691296607280395,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.5211104757816206
   },
   "dense_slow@100": {
    "status": "PASS",
@@ -129,13 +113,7 @@
     100.0
    ],
    "reference_q_ovf": 0.18888069576460367,
-   "reference_pdr": 0.44947592063219494,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.49256149292513296,
-    "q_ovf": 0.13319037854639224,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.44947592063219494
   },
   "very_dense@40": {
    "status": "PASS",
@@ -147,13 +125,7 @@
     80.0
    ],
    "reference_q_ovf": 0.017423917194113413,
-   "reference_pdr": 0.7295126063024243,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.739090442290018,
-    "q_ovf": 0.0005111852380722807,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.7295126063024243
   },
   "very_dense@60": {
    "status": "PASS",
@@ -165,13 +137,7 @@
     80.0
    ],
    "reference_q_ovf": 0.0652724211815121,
-   "reference_pdr": 0.5322910927456382,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.5681665136210591,
-    "q_ovf": 0.024970921334557698,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.5322910927456382
   },
   "very_dense@80": {
    "status": "PASS",
@@ -183,13 +149,7 @@
     80.0
    ],
    "reference_q_ovf": 0.11611181194130472,
-   "reference_pdr": 0.4111652771863128,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.45791556137646366,
-    "q_ovf": 0.060368836919045876,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.4111652771863128
   },
   "medium_slow@30": {
    "status": "PASS",
@@ -202,13 +162,7 @@
     80.0
    ],
    "reference_q_ovf": 0.054420394420394425,
-   "reference_pdr": 0.7533028699695365,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.7348773448773449,
-    "q_ovf": 0.03647266313932981,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.7533028699695365
   },
   "medium_slow@40": {
    "status": "PASS",
@@ -221,13 +175,7 @@
     80.0
    ],
    "reference_q_ovf": 0.08578739963370889,
-   "reference_pdr": 0.6541916041650883,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.6452183135937776,
-    "q_ovf": 0.04457904781145267,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.6541916041650883
   },
   "medium_slow@60": {
    "status": "PASS",
@@ -240,13 +188,7 @@
     80.0
    ],
    "reference_q_ovf": 0.15083774250440918,
-   "reference_pdr": 0.48119608786275453,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.4722302388969055,
-    "q_ovf": 0.0924450857784191,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.48119608786275453
   },
   "medium_slow@80": {
    "status": "PASS",
@@ -259,13 +201,7 @@
     80.0
    ],
    "reference_q_ovf": 0.2116434851570396,
-   "reference_pdr": 0.3764044639813273,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.3592247136357542,
-    "q_ovf": 0.1784576404584233,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.3764044639813273
   },
   "sparse_fast@40": {
    "status": "PASS",
@@ -278,13 +214,20 @@
     100.0
    ],
    "reference_q_ovf": 0.11309544853826276,
-   "reference_pdr": 0.3966160761635395,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.375275469919274,
-    "q_ovf": 0.11979595444329404,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.3966160761635395
+  },
+  "sparse_fast@60": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_sparse_fast_1000s_v28.json",
+   "usable_rates": [
+    60.0,
+    80.0,
+    100.0
+   ],
+   "reference_q_ovf": 0.16471941638608303,
+   "reference_pdr": 0.33752637485970816
   },
   "sparse_fast@80": {
    "status": "PASS",
@@ -297,13 +240,7 @@
     100.0
    ],
    "reference_q_ovf": 0.22240516504838026,
-   "reference_pdr": 0.29122842460132076,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.2405282894986048,
-    "q_ovf": 0.30508381839838045,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.29122842460132076
   },
   "sparse_fast@100": {
    "status": "PASS",
@@ -316,13 +253,7 @@
     100.0
    ],
    "reference_q_ovf": 0.2605837769405078,
-   "reference_pdr": 0.2607198052505581,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.19965790900244784,
-    "q_ovf": 0.38614464119166186,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.2607198052505581
   },
   "sink_50@20": {
    "status": "PASS",
@@ -334,13 +265,7 @@
     40.0
    ],
    "reference_q_ovf": 0.00864337822671156,
-   "reference_pdr": 0.8870187991021324,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.8857589786756453,
-    "q_ovf": 0.004524410774410775,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.8870187991021324
   },
   "sink_50@30": {
    "status": "PASS",
@@ -352,59 +277,22 @@
     40.0
    ],
    "reference_q_ovf": 0.0359006734006734,
-   "reference_pdr": 0.6981893004115226,
-   "da_gpsr_diagnostic": {
-    "pdr": 0.733013468013468,
-    "q_ovf": 0.00595679012345679,
-    "energy": 0.0,
-    "dead": 0.0
-   }
+   "reference_pdr": 0.6981893004115226
+  },
+  "sink_50@40": {
+   "status": "PASS",
+   "role": "band",
+   "reason": "usable under the band criteria",
+   "band_file": "band_sink50_1000s_z100_300_v28.json",
+   "usable_rates": [
+    30.0,
+    40.0
+   ],
+   "reference_q_ovf": 0.0669924324688334,
+   "reference_pdr": 0.543299353799619
   }
  },
  "mobility": "v28-arrive-on-pass",
- "band_moved": {
-  "sparse_fast": {
-   "grid": {
-    "anchor": [
-     40.0
-    ],
-    "band": [
-     80.0,
-     100.0
-    ]
-   },
-   "by_rule": {
-    "anchor": [
-     40.0
-    ],
-    "band": [
-     60.0,
-     80.0,
-     100.0
-    ]
-   },
-   "band_file": "band_sparse_fast_1000s_v28.json"
-  },
-  "sink_50": {
-   "grid": {
-    "anchor": [
-     20.0
-    ],
-    "band": [
-     30.0
-    ]
-   },
-   "by_rule": {
-    "anchor": [
-     20.0
-    ],
-    "band": [
-     30.0,
-     40.0
-    ]
-   },
-   "band_file": "band_sink50_1000s_z100_300_v28.json"
-  }
- },
- "created": "2026-10-05 23:20:05"
+ "band_moved": {},
+ "created": "2026-10-07 20:13:33"
 }
