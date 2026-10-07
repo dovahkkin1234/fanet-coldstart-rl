@@ -656,6 +656,8 @@ Four experiments, **1,769 episodes**: the 9-teacher generalised panel (990) → 
 > Altitude 100–300 m for the four Suite A scenarios; **sink_50's band was measured at 50–150 m** (the convergecast band script had no altitude flags — added in v26). Re-measure it before Dataset V3 uses it (DATASET_V3_SPEC §2).
 
 > **v28 (2026-10-04): every number in this section was measured with the waypoint-trapping bug** — at 1000 s, 37–51% of the 5–15 m/s drones and every sparse_fast / sink_50 drone end the episode frozen at a waypoint (DATASET_V3_SPEC §0 #15). The bands are re-measured after the fix; treat these as pre-v28.
+>
+> **v29 (2026-10-06): re-measured on the fixed simulator** (`results/band_*_v28.json`) — dense_slow 60/80/100, very_dense 60/80 and medium_slow 40/60/80 unchanged; sparse_fast 60/80/100 (was 80/100: elasticity 0.45–0.55 instead of 0.80–0.86, i.e. congestion-limited, not partitioned); sink_50 30/40 (was 30). `DATASET_GRID` follows (18 cells).
 
 **Phase 1 — elasticity sweep (bold = usable):**
 
@@ -984,6 +986,8 @@ Ordered roughly by how much they matter to the thesis. None of these is started 
 > learnable locally (student −3.97 pp vs a da_gpsr student in medium_slow), mixing
 > teachers did not hurt the dense cells, a da_gpsr student matches its teacher. The
 > analysis below is the reasoning before the test. See DATASET_V3_SPEC §0-§1.
+>
+> **Re-run on the fixed simulator (v28 mobility, 2026-10-05, `results/teacher_choice_v28`): SINGLE da_gpsr again** — dijkstra student −4.75 pp vs a da_gpsr student in medium_slow; mixing teachers +0.12 / +0.03 pp in the dense cells (n.s.); dijkstra's medium_slow edge (+2.78 pp) is its dropping of unreachable packets (without it: −0.23 pp vs da_gpsr, n.s.).
 
 **What is at stake.** The label is what M4 imitates, so the choice sets the warmstart's prior — and you have said warmstart quality must not be compromised, because errors propagate into the GNN and are amplified by RL.
 

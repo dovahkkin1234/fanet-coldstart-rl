@@ -153,15 +153,18 @@ OPERATING_POINT = dict(z_min=100, z_max=300, duration=1000.0, drain_time=10.0,
 # Buckets are scenario-RELATIVE: anchor -> 'low', top band rate -> 'high',
 # other band rates -> 'medium'. Never compare bucket labels with pre-v26 results
 # (those used absolute thresholds 0.5 / 2.0 on the old grid).
-# sink_50's band file was measured at 50-150 m (BASE); verify_dataset_grid_v3
-# marks it UNVERIFIED until it is re-measured at 100-300 m, and the generator
-# refuses unverified cells unless explicitly allowed.
+# v29 (2026-10-06): the bands were re-measured with the v28 mobility
+# (results/band_*_v28.json). dense_slow, very_dense and medium_slow are unchanged;
+# sparse_fast gained 60 (its elasticity fell from 0.86, against the ceiling, to 0.55 --
+# congestion-limited like the others once its drones stopped freezing) and sink_50
+# gained 40. The grid follows: 18 cells. verify_dataset_grid_v3 must PASS every cell
+# (and records BAND MOVED when this table and a band file disagree).
 DATASET_GRID = {
     'dense_slow':  {'suite': 'A', 'anchor': [40.0], 'band': [60.0, 80.0, 100.0]},
     'very_dense':  {'suite': 'A', 'anchor': [40.0], 'band': [60.0, 80.0]},
     'medium_slow': {'suite': 'A', 'anchor': [30.0], 'band': [40.0, 60.0, 80.0]},
-    'sparse_fast': {'suite': 'A', 'anchor': [40.0], 'band': [80.0, 100.0]},
-    'sink_50':     {'suite': 'C', 'anchor': [20.0], 'band': [30.0]},
+    'sparse_fast': {'suite': 'A', 'anchor': [40.0], 'band': [60.0, 80.0, 100.0]},
+    'sink_50':     {'suite': 'C', 'anchor': [20.0], 'band': [30.0, 40.0]},
 }
 DATASET_SEEDS = list(range(101, 151))
 DATASET_SPLITS = {'train': (101, 135), 'val': (136, 142), 'test': (143, 150)}

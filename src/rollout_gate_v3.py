@@ -15,7 +15,8 @@ NON-INFERIORITY test against the policy the student imitates:
              with the loss weights the export declares (context multiplicity)
   PASS iff   in EVERY evaluated training cell, the 95% CI lower bound of the
              paired PDR difference (student - reference, mean over model seeds)
-             is above -1.0 pp. Held-out medium_slow cells are REPORTED, not gated.
+             is above -1.0 pp. Held-out medium_slow cells are REPORTED, not gated
+             (v29: rolled out by default; --skip_heldout to leave them out).
   A cell whose CI straddles -1 pp with a half-width above 1 pp is INCONCLUSIVE
   (too few seeds to decide, not a failure): re-run the gate with
   --eval_seeds 1 2 3 4 5 6 7 8 9 10 and decide on those. A cell whose whole CI
@@ -118,7 +119,10 @@ def main():
     ap.add_argument('--model_seeds', type=int, default=2)
     ap.add_argument('--eval_seeds', type=int, nargs='+', default=[1, 2, 3, 4, 5])
     ap.add_argument('--cells', nargs='+', default=None, help="'scenario@rate' (default: all training cells)")
-    ap.add_argument('--include_heldout', action='store_true')
+    ap.add_argument('--include_heldout', action='store_true',
+                    help='no-op since v29: held-out cells are rolled out and reported by default')
+    ap.add_argument('--skip_heldout', action='store_true',
+                    help='do not roll out the held-out cells (they are reported, never gated)')
     ap.add_argument('--max_workers', type=int, default=8,
                     help='default 8: on Windows 16 spawn workers stalled a run (project report)')
     ap.add_argument('--device', default=None)
@@ -144,11 +148,15 @@ def main():
     if args.smoke:
         args.eval_seeds, args.model_seeds = args.eval_seeds[:1], 1
 
+    # v29: the held-out cells are reported by default (spec §8) and never gated -- also
+    # when named in --cells (before v29 that made them gated)
     cells = [(s, r) for s, r in C.dataset_cells() if s != C.GENERALISATION_SCENARIO]
+    held = [(s, r) for s, r in C.dataset_cells() if s == C.GENERALISATION_SCENARIO]
     if args.cells:
-        cells = [(s, r) for s, r in C.dataset_cells() if f'{s}@{r:g}' in args.cells]
-    held = ([(s, r) for s, r in C.dataset_cells() if s == C.GENERALISATION_SCENARIO]
-            if args.include_heldout else [])
+        cells = [(s, r) for s, r in cells if f'{s}@{r:g}' in args.cells]
+        held = [(s, r) for s, r in held if f'{s}@{r:g}' in args.cells]
+    if args.skip_heldout:
+        held = []
     res_path = os.path.join(args.out, 'gate.json')
     res = json.load(open(res_path)) if os.path.isfile(res_path) else {'train': {}, 'pdr': {}}
 

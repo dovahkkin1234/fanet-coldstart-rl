@@ -11,34 +11,46 @@ side with no marking.
 
 > **v28 (2026-10-04) — mobility fix.** Every result from episodes longer than ~40 s produced before v28 ran on networks that freeze (drones trapped at their waypoints: 37–51% of the 5–15 m/s drones and all sparse_fast / sink_50 drones by 1000 s; DATASET_V3_SPEC §0 #15). That covers the `band_*_1000s*.json` files, `grid_verification.json`, `teacher_choice/` and `bc_data_scaling/` (300 s), `dataset_v3/` and `g4_v3/`. Read them as pre-v28 until re-measured; files written after v28 record `mobility: v28-arrive-on-pass` (the re-measured bands are `band_*_v28.json`; the pre-v28 band files are kept beside them). The 40 s results are essentially unaffected except in sparse_fast. The sparse_fast caveat below (low delivery, loss neither link nor queue) is what a frozen, partitioned network looks like — re-check it on the re-measured band before citing it.
 
+> **v29 (2026-10-06).** Bands, grid verification, teacher choice and Point-1 were re-measured on the fixed simulator; the CURRENT table lists those files, and the pre-v28 ones moved to **PRE-V28** below (kept as the record). The sparse_fast caveat was the bug: on the fixed simulator sparse_fast is congestion-limited like the others.
+
 ---
 
 ## CURRENT — safe to cite
 
 | file | what it is |
 |---|---|
-| `band_dense_slow_1000s.json` | Usable band + queue ablation, 1000 s, battery 8000. Usable rates 60/80/100. |
-| `band_very_dense_1000s.json` | Same, very_dense. Usable rates 60/80. |
-| `band_medium_slow_1000s.json` | Same, medium_slow. Usable rates 40/60/80. |
-| `band_sparse_fast_1000s.json` | Same, sparse_fast. Usable rates 80/100 — **see caveat below**. |
-| `band_sink50_1000s.json` | Convergecast band, 1000 s, battery 8000. Only rate 30 usable. **Altitude 50–150 m (BASE), not the 100–300 m operating point** — Dataset V3 needs `band_sink50_1000s_z100_300.json` (DATASET_V3_SPEC §2). |
+| `band_dense_slow_1000s_v28.json` | Usable band (phase 1), 1000 s, battery 8000, 100–300 m, v28 mobility. Usable rates 60/80/100. |
+| `band_very_dense_1000s_v28.json` | Same, very_dense. Usable rates 60/80 (100 and 120 lose ~8 nodes to the battery). |
+| `band_medium_slow_1000s_v28.json` | Same, medium_slow. Usable rates 40/60/80; 80 is the top of the sweep, so the upper edge is unmeasured. |
+| `band_sparse_fast_1000s_v28.json` | Same, sparse_fast. Usable rates 60/80/100 — congestion-limited (see the resolved caveat below). |
+| `band_sink50_1000s_z100_300_v28.json` | Convergecast band, same operating point. Usable rates 30/40. |
 | `energy_range.json` | Battery sweep that established `INITIAL_ENERGY = 8000`. |
-| `teacher_choice/summary.json` | Teacher-choice test (2026-10-01): pre-registered verdict SINGLE da_gpsr. 300 s, 100–300 m, battery 8000, 10 paired seeds. |
-| `grid_verification.json` | Dataset V3 grid gate (`verify_dataset_grid_v3.py`); the generator refuses cells that are not PASS here. |
-| `bc_data_scaling/scaling.json` | How much imitation data is worth training on (`test_bc_data_scaling.py`). |
-| `dataset_v3/<data>_preflight_v3.json`, `_audit_v3.json`, `_manifest.json` | Dataset V3 gate verdicts (G3.5 v3, independent audit) and manifest, copied out of the git-ignored `data/` folder. |
-| `g4_v3/gate.json` | Restated G4 check 4 (`rollout_gate_v3.py`): student vs restricted da_gpsr, paired non-inferiority, 1 pp margin. |
+| `teacher_choice_v28/summary.json` | Teacher-choice test on the fixed simulator (2026-10-05): pre-registered verdict SINGLE da_gpsr, unchanged. 300 s, 100–300 m, battery 8000, 10 paired seeds. |
+| `grid_verification.json` | Dataset V3 grid gate (`verify_dataset_grid_v3.py`), v28 mobility; the generator refuses cells that are not PASS here and treats a file from another mobility version as verifying nothing. Re-run after any `DATASET_GRID` change (v29: 18 cells). |
+| `bc_data_scaling_v28/scaling.json` | Point-1 on the fixed simulator (2026-10-06): DATA-LIMITED on the same single trigger as before (DATASET_V3_SPEC §12 item 8). |
 | `panel_cc_v2_corrected.json` | Convergecast oracle panel, after the v16 delta sign-flip fix. |
 
-### Caveat on `band_sparse_fast_1000s.json`
+### sparse_fast caveat — resolved by v28
 
-Its two "usable" cells have elasticity **0.80 and 0.85**, both pressed against
-the `ELASTIC_HI = 0.85` ceiling, while every other scenario's usable cells sit
-at **0.05–0.47**. Its `link_error` is ~0.007 (near zero) against a PDR of only
-~0.30, so its dominant loss is neither link nor queue — most likely
-route-unavailability, consistent with the original connectivity-limited
-characterisation of this scenario. Treat its cells as qualitatively different
-from the other four scenarios', not as peers.
+Before v28, sparse_fast's "usable" cells had elasticity 0.80–0.86, pressed
+against the `ELASTIC_HI = 0.85` ceiling, with near-zero link errors (~0.007) and
+little queue overflow: its loss was neither link nor queue but unreachable
+destinations. That was the trapping bug — by 300 s every sparse_fast drone was
+frozen and the network stayed partitioned. On the fixed simulator its usable
+cells have elasticity 0.45–0.55 and queue overflow 0.17–0.26: it is
+congestion-limited like the other four scenarios, and its cells are peers of theirs.
+
+## PRE-V28 — the trapping simulator (kept as the record, not current)
+
+| file | what it is | current replacement |
+|---|---|---|
+| `band_dense_slow_1000s.json`, `band_very_dense_1000s.json`, `band_medium_slow_1000s.json`, `band_sparse_fast_1000s.json` | 1000 s bands with the phase-2 queue ablation | `band_*_1000s_v28.json` (phase 1) |
+| `band_sink50_1000s_z100_300.json` | sink_50 band at 100–300 m, with the phase-2 ablation (candqueue +3.51 pp, additive +4.08 pp) | `band_sink50_1000s_z100_300_v28.json` |
+| `band_sink50_1000s.json` | sink_50 band at 50–150 m (BASE), not the operating point | — |
+| `teacher_choice/` | teacher-choice test, 2026-10-01: SINGLE da_gpsr | `teacher_choice_v28/` |
+| `bc_data_scaling/scaling.json` | Point-1, 2026-10-04: DATA-LIMITED | `bc_data_scaling_v28/` |
+| `dataset_v3/v3_*` | Dataset V3 v26 run: G3.5 v3 and audit PASS | the regeneration into `data\v3m` |
+| `g4_v3/gate.json` | restated G4 on the v26 dataset: PASS, held-out cells inside the margin | `g4_v3m/` |
 
 ---
 

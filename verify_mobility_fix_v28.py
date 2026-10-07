@@ -244,15 +244,19 @@ def main():
         res_old, res_new = os.path.join(tmp, 'res_old'), os.path.join(tmp, 'res_new')
         os.makedirs(res_old)
         os.makedirs(res_new)
-        covered = []
+        covered, src_curves = [], {}
         for sc, names in V.BAND_FILES.items():
             assert names[0].endswith('_v28.json'), names
-            have = [n for n in names[1:] if os.path.isfile(os.path.join(root, 'results', n))]
+            # v29: test data = the newest band file present (once re-measured, the v28 one,
+            # which matches the current grid); without its mobility marker, under the
+            # pre-v28 name, it plays a pre-v28 file
+            have = [n for n in names if os.path.isfile(os.path.join(root, 'results', n))]
             if not have:
                 continue
             b = json.load(open(os.path.join(root, 'results', have[0])))
             b.setdefault('run_params', {}).pop('mobility', None)
-            json.dump(b, open(os.path.join(res_old, have[0]), 'w'))
+            json.dump(b, open(os.path.join(res_old, names[1]), 'w'))
+            src_curves[sc] = b['curve']
             b['run_params']['mobility'] = MOB
             json.dump(b, open(os.path.join(res_new, names[0]), 'w'))
             covered.append(sc)
@@ -270,7 +274,19 @@ def main():
         assert not any('mobility' in v['reason'] for v in g_new['cells'].values()), t_new[-1500:]
         n_pass = sum(v['status'] == 'PASS' for v in g_new['cells'].values())
         assert n_pass >= 1, t_new[-1500:]
-        assert g_new.get('band_moved') == {}, f"current bands reported as moved: {g_new.get('band_moved')}"
+        # v29: the BAND MOVED report must equal the rule applied to the test data ({} when
+        # DATASET_GRID follows those bands) -- restated here, not taken from the verifier
+        chosen = {k.split('@')[0] for k, v in g_new['cells'].items() if 'band_file' in v}
+        expect = {}
+        for sc in chosen:
+            swept = sorted(float(c['rate']) for c in src_curves[sc])
+            use = sorted(float(c['rate']) for c in src_curves[sc] if c.get('usable'))
+            rule = {'anchor': [swept[0]] if use and swept[0] < use[0] else [], 'band': use}
+            gr = C.DATASET_GRID[sc]
+            if rule != {'anchor': [float(x) for x in gr['anchor']], 'band': [float(x) for x in gr['band']]}:
+                expect[sc] = rule
+        got = {sc: v['by_rule'] for sc, v in g_new.get('band_moved', {}).items()}
+        assert got == expect, f'BAND MOVED report {got} != the rule {expect}'
         moved = ''
         if 'dense_slow' in covered:      # negative control: a band that grew is reported
             res_mv = os.path.join(tmp, 'res_moved')
@@ -294,7 +310,8 @@ def main():
         assert len(stale) == len(ok_cells) and 'pre-v28' in stale[0], stale[:2]
         return (f'pre-v28 band files: every cell of {len(covered)} scenario(s) UNVERIFIED, re-measure '
                 f'commands printed; the same data marked v28: {n_pass}/{len(g_new["cells"])} PASS (the '
-                f'rest for other reasons, e.g. altitude), no band reported as moved{moved}; the generator '
+                f'rest for other reasons, e.g. altitude), BAND MOVED report = the rule '
+                f'({len(expect)} moved){moved}; the generator '
                 f'counts all {len(ok_cells)} PASS cells of a pre-v28 grid file as unverified')
     c6()
 

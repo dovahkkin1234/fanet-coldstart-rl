@@ -96,7 +96,7 @@ def main():
         assert C.RATES == [0.5, 2.0, 4.0]
         assert C.OPERATING_POINT['duration'] == 1000.0 and C.OPERATING_POINT['initial_energy'] == 8000.0
         cells = C.dataset_cells()
-        assert len(cells) == 16, len(cells)
+        assert len(cells) == 18, len(cells)      # v29: the grid follows the v28 bands (was 16)
         assert C.load_bucket_rel('dense_slow', 40) == 'low' and C.load_bucket_rel('dense_slow', 100) == 'high'
         assert C.load_bucket_rel('dense_slow', 60) == 'medium'
         cfg = C.dataset_episode_config('sink_50', 30, 101)
@@ -108,7 +108,7 @@ def main():
                                  capture_output=True, text=True)
             assert 'DRY RUN OK' in out.stdout or 'ALREADY APPLIED' in out.stdout, out.stdout
             note = '; v8b staged patch still matches'
-        return f'16 cells, BASE/RATES unchanged, explicit operating point{note}'
+        return f'{len(cells)} cells, BASE/RATES unchanged, explicit operating point{note}'
     c3()
 
     @check('4 teacher pickers pinned (and pins able to fail)')

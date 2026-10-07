@@ -1,6 +1,6 @@
 # Dataset V3 — Specification
 
-**Status:** v26 implemented and run in full (2026-10-04: 800 episodes, G3.5 v3 and audit PASS) — then **invalidated by the waypoint-trapping bug (§0 #15), fixed in v28: re-measure the bands and regenerate before any use (§10).**
+**Status:** v26 implemented and run in full (2026-10-04: 800 episodes, G3.5 v3 and audit PASS) — then **invalidated by the waypoint-trapping bug (§0 #15), fixed in v28.** v29 (2026-10-06): the bands were re-measured on the fixed simulator and `DATASET_GRID` follows them (18 cells, §2); teacher choice and Point-1 were re-run. **Regenerate before any use (§10).**
 **Written:** 2026-10-02/03. **Supersedes:** `docs/DATASET_V2_MASTER_SPEC.md` (in repo),
 `M3.5_Dataset_Schema.md` and `LOAD_DENSITY_DESIGN.md` (never committed). Where this document
 and an older one disagree, this one is current; §11 lists every statement it overturns.
@@ -21,7 +21,7 @@ invalidated part of the V2 plan.
 
 | # | Finding | Measurement | Consequence |
 |---|---|---|---|
-| 1 | **One teacher, da_gpsr** | Teacher-choice test (2026-10-01, 300 s, 10 paired seeds): the student trained on dijkstra labels is **3.97 pp worse** than the one trained on da_gpsr labels in medium_slow; mixing teachers had **no** effect on the dense cells (+0.10 / +0.02 pp); a da_gpsr student matches its teacher (+0.45 / +0.10 / +0.02 pp); holding medium_slow out costs nothing (−0.04 pp) | label = da_gpsr everywhere; no `label_teacher` column; per-cell table stays an *evaluation* reference |
+| 1 | **One teacher, da_gpsr** | Teacher-choice test (2026-10-01, 300 s, 10 paired seeds): the student trained on dijkstra labels is **3.97 pp worse** than the one trained on da_gpsr labels in medium_slow; mixing teachers had **no** effect on the dense cells (+0.10 / +0.02 pp); a da_gpsr student matches its teacher (+0.45 / +0.10 / +0.02 pp); holding medium_slow out costs nothing (−0.04 pp). **Re-run on the fixed simulator (v28, 2026-10-05): same verdict** — dijkstra student −4.75 pp; mixing +0.12 / +0.03 pp; a da_gpsr student vs its teacher +0.47 / −0.05 / −0.01 pp; holdout −0.00 pp | label = da_gpsr everywhere; no `label_teacher` column; per-cell table stays an *evaluation* reference |
 | 2 | **Episodes are huge** | 0.7–1.2 M routing decisions per 1000 s episode at the band rates (V2's whole dataset: 533 k). V2 keeps ~2.1 KB of Python per decision in the parent process | per-episode shards written by the workers; nothing accumulates in the parent |
 | 3 | **Most decisions are copies** | 77–86% of decisions repeat a context (frame, node, destination, hop count, candidate set) with an identical label and identical features **except the live own queue (#14)**; 132–268 k distinct contexts per episode; 52–71% of distinct contexts occur once, and 91–100% of those come from ε detours (recovery states) | keep every distinct context once + its multiplicity + its own-queue histogram (together lossless for imitation); a 3% packet sample would have kept only 10–16% of the contexts |
 | 4 | **Own queue was dead** | frame-start snapshot non-empty in 6–36% of decisions vs 68–89% live (very_dense 10% vs 76%, sink_50 6% vs 75%); the query column was a byte-for-byte copy of `node_feat[current].queue_occupancy` | `own_queue_live` read at decision time (schema v6) |
@@ -68,8 +68,8 @@ invalidated part of the V2 plan.
 | dense_slow | A | 40 | 60, 80, **100** | PASS |
 | very_dense | A | 40 | 60, **80** | PASS |
 | medium_slow (held out) | A | 30 | 40, 60, **80** | PASS |
-| sparse_fast (flagged) | A | 40 | 80, **100** | PASS |
-| sink_50 | C | 20 | **30** | **UNVERIFIED** — band measured at 50–150 m |
+| sparse_fast | A | 40 | 60, 80, **100** | PASS (60 added in v29) |
+| sink_50 | C | 20 | 30, **40** | PASS (40 added in v29) |
 
 * **band** = rates marked usable in `results/band_*_1000s.json` (criteria: elasticity 0.05–0.85,
   queue overflow ≥ 0.02, energy share ≤ 0.05, no dead nodes) under `spbp_ab_noqueue`.
@@ -81,10 +81,10 @@ invalidated part of the V2 plan.
   comparable with any pre-v26 result (absolute thresholds 0.5 / 2.0 on the old grid).
 * `verify_dataset_grid_v3.py` writes `results/grid_verification.json`; the generator refuses
   any cell that is not PASS unless `--allow_unverified_cells` (recorded in the manifest).
-* **sink_50:** re-measure first (§10 step 2). If rate 30 is not usable at 100–300 m, update
-  `DATASET_GRID['sink_50']` by the same rule (band = usable rates, anchor = lowest swept) and
-  re-run the verifier before generating.
+* **sink_50:** measured at 100–300 m twice — before v28 only rate 30 was usable; on the fixed
+  simulator 30 and 40 are (v29).
 * **v28:** a band file counts only if it records `mobility = v28-arrive-on-pass`; the verifier refuses older files and prints the five re-measure commands (`--phase1_only`: which rates are usable is all the grid needs). They write `band_*_v28.json` beside the pre-v28 files, which are kept for comparison. `grid_verification.json` records the mobility too, and the generator treats a pre-v28 one as verifying nothing. If a band moves, `DATASET_GRID` follows it by the rule above.
+* **v29 (2026-10-06):** the five bands re-measured on the fixed simulator (`results/band_*_v28.json`, phase 1, 3 map seeds): dense_slow, very_dense and medium_slow unchanged; **sparse_fast gained 60** — its elasticity fell from 0.80–0.86 (against the 0.85 ceiling, near-zero link errors: unreachable destinations in frozen, partitioned networks) to 0.45–0.55 with queue overflow 0.17–0.26, i.e. it is now congestion-limited like the other four; **sink_50 gained 40**. `DATASET_GRID` follows: 18 cells, 900 episodes. Buckets are scenario-relative, so sink_50@30 is now *medium*. medium_slow's top swept rate (80) is still usable, so its band's upper edge remains unmeasured. Re-run the verifier on the 18-cell grid before generating.
 
 ---
 
@@ -256,6 +256,8 @@ features 1.00000, 0 own-queue histogram mismatches.
 
 **Actual v26 run** (2026-10-04, Z8, 12 workers, with the trapping bug): 10.0 h for 800 episodes; 120.1 M contexts, 471 M own-queue pairs, 71.5 M steps, 714 M decisions, 11.5 GB. Export at `--ctx_frac 0.6` of train + val: 40.1 M rows, 997 k frames, 20.2 GB in 155 s. The v28 run will differ (the networks keep moving).
 
+**v29 grid (18 cells, 900 episodes):** sparse_fast@60 (~2–3 min per episode) and sink_50@40 (~15 min) add about 1.2 h of generation and ~12% more contexts. The 16-cell export at `--ctx_frac 0.6` was 20.2 GB, so the 18-cell one will likely exceed `--max_gb 22`: the exporter refuses before writing anything and prints the size — then use `--ctx_frac` ≈ 0.6 × 21.5 / that size. Point-1 measured delivery flat from 13 k to 1.7 M rows (its pre-registered reading, DATA-LIMITED, rests on hard-row accuracy — §12 item 8), so the fraction is set by RAM.
+
 Measured in the sandbox (60 s smoke episodes, 150 s probes, one 1000 s run per scenario) and
 extrapolated to 1000 s:
 
@@ -289,23 +291,24 @@ took ~8.5 s per epoch on the A4000, so ~45 M rows ≈ 14 min per epoch, ~5–7 h
 
 ## 10. Execution order
 
-**v28 re-run** (after `apply_mobility_fix_v28.py` and `verify_mobility_fix_v28.py`):
+**v28/v29 re-run** (after `apply_mobility_fix_v28.py` / `verify_mobility_fix_v28.py`, then `apply_grid_followup_v29.py` / `verify_grid_followup_v29.py`):
 
 ```
-1  bands, phase 1 only (commands printed by verify_dataset_grid_v3.py; ~2-3 h):
-     find_usable_band.py x 4 (dense_slow, very_dense, medium_slow, sparse_fast) and
-     find_congestion_band_convergecast.py (sink_50), all --duration 1000 --initial_energy 8000,
-     into results\band_*_v28.json (the pre-v28 files are kept); --skip-self-test, because
-     the self-tests check the code, not the band (verify_mobility_fix_v28 check 5 runs them)
-2  python src\verify_dataset_grid_v3.py --diagnose_seeds 3 --max_workers 12
-     (BAND MOVED lines = a band changed -> DATASET_GRID follows it, then re-verify)
+1  DONE 2026-10-06: bands, phase 1 only, into results\band_*_v28.json (--skip-self-test: the
+     self-tests check the code, not the band; verify_mobility_fix_v28 check 5 runs them)
+2  DONE: verify_dataset_grid_v3.py -> 16/16 PASS, BAND MOVED sparse_fast (+60), sink_50 (+40)
+     -> v29: DATASET_GRID follows (18 cells). Re-run on the 18-cell grid (18/18 PASS):
+     python src\verify_dataset_grid_v3.py     (seconds; add --diagnose_seeds 3 --max_workers 12
+     for da_gpsr's congestion per cell, ~1 h -- reported, never used to move cells)
 3  python src\generate_dataset_v3.py --smoke ; G3.5 v3 + audit on data\v3_smoke
-4  python src\generate_dataset_v3.py --out data\v3m --max_workers 12   (a NEW folder)
+4  python src\generate_dataset_v3.py --out data\v3m --max_workers 12   (a NEW folder; ~11 h)
 5  python src\preflight_dataset_v3_check.py --data data\v3m ; python src\audit_dataset_v3.py --data data\v3m
 6  python src\export_phaseb_v3.py --data data\v3m --out data\phaseB_v3m --splits train val --ctx_frac 0.6
+     (refused above --max_gb 22, with the size printed: then --ctx_frac = 0.6 x 21.5 / size)
 7  python src\rollout_gate_v3.py --data data\phaseB_v3m --out results\g4_v3m --max_workers 12
+     (v29: the held-out medium_slow cells are rolled out and reported by default)
 ```
-Recommended before step 4: `test_teacher_choice.py --out results\teacher_choice_v28` (~3 h). Its verdict (single da_gpsr) chose the label teacher, and it ran at 300 s, where 12–19% of the slow drones were trapped by the end of an episode. Optional after it: `test_bc_data_scaling.py --tc results\teacher_choice_v28 --out results\bc_data_scaling_v28` (~2 h, Point-1 on the fixed simulator).
+Teacher choice on the fixed simulator: DONE 2026-10-05 (`results\teacher_choice_v28`) — SINGLE da_gpsr, unchanged (§0 #1). Point-1: DONE 2026-10-06 (`results\bc_data_scaling_v28`) — DATA-LIMITED again, on the same weak trigger (§12 item 8).
 
 **Original v26 order** (run 2026-10-03/04 on the trapping simulator; kept for the record):
 
@@ -353,16 +356,17 @@ for that gate). Risk accepted: a simulator bug found later would mean regenerati
 | dequeue-before-decision explains the zero own queue | audit_dataset_v2 | frame-start stamping (corrected in v26) |
 | G4 check 4 = ≥ 90% of SP-BP | rollout_eval_v2 | non-inferiority vs restricted da_gpsr (§8) |
 | drones follow Random Waypoint for the whole episode | `mobility.py` since the first commit | they froze at a waypoint after a missed arrival (§0 #15); fixed in v28 |
+| sparse_fast is connectivity-limited; its band cells are not peers of the other scenarios' (`results/README.md` caveat) | `results/README.md` | the trapping bug: on the fixed simulator it is congestion-limited (elasticity 0.45–0.55, queue overflow 0.17–0.26; v29) |
 | the 1000 s bands; "at 1000 s only rate 30 is usable in sink_50"; the v26 dataset and its per-cell PDRs | report §11.2, `results/band_*_1000s.json`, `data/v3` | measured on freezing networks; re-measured / regenerated after v28 |
 | link-lifetime saturation is purely structural (§0 #10) | this spec | partly confounded: a trapped drone reports a velocity that flips every frame; re-check on the v28 dataset |
 
 ## 12. Open items
 
-1. sink_50 band at 100–300 m (§10 step 2) → then the Suite C training weight (V3-10).
+1. sink_50 band at 100–300 m: done (v28 mobility: 30 and 40 usable, v29). The Suite C training weight (V3-10) remains open.
 2. Training size from `test_bc_data_scaling.py` (V3-12).
 3. Drop/hold in the M5 action space (environment contract) — the dataset already encodes it.
 4. D2 reference re-measured at 100–300 m.
 5. `BUFFERED_REF_V6`: checked on the v26 run (largest value 73% of the range, nothing clipped); re-confirm on the v28 run.
 6. The isolated-node queue quirk (§0 #13): fix or keep, before the M5 environment is frozen.
-7. **v28 re-run** (§10): bands → grid (`DATASET_GRID` may move) → regeneration → gates → export → G4.
-8. Point-1 (`test_bc_data_scaling.py`, 2026-10-04): the pre-registered verdict is DATA-LIMITED, recorded as such. Its only trigger (very_dense hard rows +0.77 pp, 30% → 100%) is within model-seed noise (two seeds differ by up to 1.0 pp), delivery moved +0.04 pp, and the 4× step reversed it in every cell; delivery is flat from 13.7 k to 1.8 M rows. Report both (V3-12).
+7. **v28 re-run** (§10): bands and grid done (v29: 18 cells), teacher choice and Point-1 re-run → regeneration → gates → export → G4 (held-out cells reported by default).
+8. Point-1 (`test_bc_data_scaling.py`, 2026-10-04): the pre-registered verdict is DATA-LIMITED, recorded as such. Its only trigger (very_dense hard rows +0.77 pp, 30% → 100%) is within model-seed noise (two seeds differ by up to 1.0 pp), delivery moved +0.04 pp, and the 4× step reversed it in every cell; delivery is flat from 13.7 k to 1.8 M rows. Report both (V3-12). **Re-run on the fixed simulator (2026-10-06, `results/bc_data_scaling_v28`): DATA-LIMITED again, on the same single trigger** — very_dense hard rows +1.01 pp (30% → 100%), smaller than the two model seeds' spread at that point (1.92 pp); delivery −0.04 pp (se 0.03); the 4× step lowered hard-row accuracy in all three cells (−0.28 / −0.08 / −0.53 pp); delivery vs da_gpsr flat from 13 k to 1.74 M rows (dense −0.02…+0.06, very_dense −0.08…−0.01 pp). New on the moving networks: small-data students are worse on hard rows (very_dense at 3%: 92.1% vs 95.0% before the fix), converging by 100%. The medium_slow student-vs-teacher offset (+0.5–0.6 pp in every run) is not significant (p 0.12–0.18, n = 5).

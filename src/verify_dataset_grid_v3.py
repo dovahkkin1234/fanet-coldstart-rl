@@ -21,7 +21,8 @@ The band is defined under the band search's fixed reference actor
 --diagnose_seeds N additionally runs N seeds per cell with the restricted
 da_gpsr policy and REPORTS its queue overflow, energy share and dead nodes --
 measured 2026-10-02: dense_slow@60 0.019 and sink_50@30 0.015 overflow under
-da_gpsr vs 0.099 / 0.144 under the reference. Reported, never used to move cells.
+da_gpsr vs 0.099 / 0.144 under the reference; 2026-10-06 (v28 mobility): 0.019 and
+0.006 vs 0.096 / 0.036. Reported, never used to move cells.
 """
 
 import argparse

@@ -65,11 +65,12 @@ work was committed without updating them.
 As of v28 (2026-10-04): the v26 dataset was generated and passed every gate, then the
 mobility bug was found (drones trapped at their waypoints; DATASET_V3_SPEC §0 #15) and
 fixed in v28. Results from episodes longer than ~40 s produced before v28 ran on freezing
-networks. Next blocking pieces, in order: re-measure the five bands with `--phase1_only`,
-`verify_dataset_grid_v3.py` (DATASET_GRID follows a band that moved), re-confirm the
-teacher choice (`test_teacher_choice.py` into a new folder -- its 300 s verdict chose the
-label teacher), regenerate into a new folder, G3.5 v3 + audit v3, export, then the
-retrain gate. Never resume or mix outputs across a `MOBILITY_VERSION` / code-signature
+networks. v29 (2026-10-06): on the fixed simulator the five bands were re-measured
+(sparse_fast gained 60, sink_50 gained 40; DATASET_GRID follows -- 18 cells), the teacher
+choice re-confirmed (SINGLE da_gpsr) and Point-1 re-run (DATA-LIMITED on the same weak
+trigger). Next blocking pieces, in order: `verify_dataset_grid_v3.py` on the 18-cell grid,
+smoke, regenerate into a new folder (data\v3m), G3.5 v3 + audit v3, export, then the
+retrain gate (held-out cells reported by default). Never resume or mix outputs across a `MOBILITY_VERSION` / code-signature
 change -- the scripts refuse it. Feature
 schema is v6 (live own queue). Labels come from da_gpsr through `teacher_pickers_v3` only — never add
 another label path. Training rows take `own_queue_live` from each context's own-queue

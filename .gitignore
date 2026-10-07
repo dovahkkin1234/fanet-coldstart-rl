@@ -29,3 +29,8 @@ results/m4_pilot/
 results/m4_rollout_det/
 
 results/m4_rollout_det2/
+
+# v29: smoke-test outputs (numbers meaningless) and the raw episode recordings the
+# 300 s tests regenerate exactly from their seeds (~100 MB per run)
+results/*_smoke/
+results/*/raw/
