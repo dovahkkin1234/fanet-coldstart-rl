@@ -1,5 +1,28 @@
 {
+ "audit_version": "v30",
  "results": {
+  "A candidates": true,
+  "B label": true,
+  "C features": true,
+  "D votes": true,
+  "G own queue": true,
+  "E splits": true,
+  "F hashing": true
+ },
+ "counts": {
+  "n": 1350000,
+  "a_bad": 0,
+  "b_agree": 1350000,
+  "b_score_maxdiff": 0.0003353501144687243,
+  "c_rows": 1350000,
+  "c_ok": 1350000,
+  "d_gpsr_bad": 0,
+  "d_dij_bad": 0,
+  "d_spbp_bad": 0,
+  "d_beh_bad": 0,
+  "g_bad": 0
+ },
+ "results_float32": {
   "A candidates": true,
   "B label": false,
   "C features": true,
@@ -8,7 +31,7 @@
   "E splits": true,
   "F hashing": true
  },
- "counts": {
+ "counts_float32": {
   "n": 1350000,
   "a_bad": 0,
   "b_agree": 1350000,
@@ -20,5 +43,880 @@
   "d_spbp_bad": 16,
   "d_beh_bad": 3,
   "g_bad": 0
- }
+ },
+ "tolerances": {
+  "label_min_agree": 0.99,
+  "score": 0.001,
+  "feature": 0.0001,
+  "feature_min_ok": 0.999,
+  "spbp_max_mismatch": 0.01
+ },
+ "exact_replay": "flagged",
+ "per_shard": 1500,
+ "n_flagged": 17,
+ "flagged": [
+  {
+   "shard": "shards/dense_slow/dense_slow_r100_s115.npz",
+   "behaviour": "gpsr",
+   "context": 7091,
+   "frame": 140,
+   "current": 10,
+   "dst": 11,
+   "k": 11,
+   "d_cd_m": 363.5393,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 5.849125916945752e-08,
+    "picks": {
+     "label": 15,
+     "da_gpsr": 15,
+     "gpsr_vote": 15,
+     "gpsr": 15,
+     "spbp_vote": 13,
+     "spbp": 7,
+     "dijkstra_vote": 15,
+     "behaviour": 15
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 3.407670012833819e-08,
+    "picks": {
+     "label": 15,
+     "da_gpsr": 15,
+     "gpsr_vote": 15,
+     "gpsr": 15,
+     "spbp_vote": 13,
+     "spbp": 13,
+     "dijkstra_vote": 15,
+     "behaviour": 15
+    },
+    "spbp_margin": 3.552713678800501e-15
+   }
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r100_s122.npz",
+   "behaviour": "da_gpsr",
+   "context": 53327,
+   "frame": 822,
+   "current": 10,
+   "dst": 4,
+   "k": 11,
+   "d_cd_m": 513.3542,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 3.643115481510861e-08,
+    "picks": {
+     "label": 15,
+     "da_gpsr": 15,
+     "gpsr_vote": 15,
+     "gpsr": 15,
+     "spbp_vote": 21,
+     "spbp": 15,
+     "dijkstra_vote": 15,
+     "behaviour": 15
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 1.1492272578017548e-08,
+    "picks": {
+     "label": 15,
+     "da_gpsr": 15,
+     "gpsr_vote": 15,
+     "gpsr": 15,
+     "spbp_vote": 21,
+     "spbp": 21,
+     "dijkstra_vote": 15,
+     "behaviour": 15
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r100_s147.npz",
+   "behaviour": "dijkstra_nodrop",
+   "context": 105629,
+   "frame": 1776,
+   "current": 18,
+   "dst": 1,
+   "k": 14,
+   "d_cd_m": 408.3257,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 9.798408295846883e-08,
+    "picks": {
+     "label": 21,
+     "da_gpsr": 21,
+     "gpsr_vote": 24,
+     "gpsr": 24,
+     "spbp_vote": 14,
+     "spbp": 4,
+     "dijkstra_vote": 24,
+     "behaviour": 24
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.734652904123891e-08,
+    "picks": {
+     "label": 21,
+     "da_gpsr": 21,
+     "gpsr_vote": 24,
+     "gpsr": 24,
+     "spbp_vote": 14,
+     "spbp": 14,
+     "dijkstra_vote": 24,
+     "behaviour": 24
+    },
+    "spbp_margin": 4.440892098500626e-16
+   }
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r60_s105.npz",
+   "behaviour": "da_gpsr",
+   "context": 96308,
+   "frame": 1427,
+   "current": 21,
+   "dst": 28,
+   "k": 10,
+   "d_cd_m": 325.8244,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 4.529279901133165e-08,
+    "picks": {
+     "label": 13,
+     "da_gpsr": 13,
+     "gpsr_vote": 13,
+     "gpsr": 13,
+     "spbp_vote": 29,
+     "spbp": 4,
+     "dijkstra_vote": 13,
+     "behaviour": 13
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.781105512550397e-08,
+    "picks": {
+     "label": 13,
+     "da_gpsr": 13,
+     "gpsr_vote": 13,
+     "gpsr": 13,
+     "spbp_vote": 29,
+     "spbp": 29,
+     "dijkstra_vote": 13,
+     "behaviour": 13
+    },
+    "spbp_margin": 8.881784197001252e-16
+   }
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r60_s139.npz",
+   "behaviour": "da_gpsr",
+   "context": 25218,
+   "frame": 314,
+   "current": 3,
+   "dst": 2,
+   "k": 13,
+   "d_cd_m": 1.6733,
+   "float32": {
+    "fails": [
+     "B score"
+    ],
+    "score_diff": 0.001096879811228746,
+    "picks": {
+     "label": 2,
+     "da_gpsr": 2,
+     "gpsr_vote": 2,
+     "gpsr": 2,
+     "spbp_vote": 2,
+     "spbp": 2,
+     "dijkstra_vote": 2,
+     "behaviour": 2
+    },
+    "spbp_margin": null
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 3.60935595722367e-06,
+    "picks": {
+     "label": 2,
+     "da_gpsr": 2,
+     "gpsr_vote": 2,
+     "gpsr": 2,
+     "spbp_vote": 2,
+     "spbp": 2,
+     "dijkstra_vote": 2,
+     "behaviour": 2
+    },
+    "spbp_margin": null
+   }
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r80_s106.npz",
+   "behaviour": "da_gpsr",
+   "context": 147348,
+   "frame": 1715,
+   "current": 8,
+   "dst": 5,
+   "k": 10,
+   "d_cd_m": 256.3872,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 1.7211874225875334e-07,
+    "picks": {
+     "label": 9,
+     "da_gpsr": 9,
+     "gpsr_vote": 9,
+     "gpsr": 9,
+     "spbp_vote": 7,
+     "spbp": 17,
+     "dijkstra_vote": 7,
+     "behaviour": 9
+    },
+    "spbp_margin": 2.0265579223632812e-06
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.3506221635827274e-08,
+    "picks": {
+     "label": 9,
+     "da_gpsr": 9,
+     "gpsr_vote": 9,
+     "gpsr": 9,
+     "spbp_vote": 7,
+     "spbp": 7,
+     "dijkstra_vote": 7,
+     "behaviour": 9
+    },
+    "spbp_margin": 0.0
+   }
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r80_s106.npz",
+   "behaviour": "da_gpsr",
+   "context": 166247,
+   "frame": 1937,
+   "current": 6,
+   "dst": 5,
+   "k": 12,
+   "d_cd_m": 350.4062,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 6.791544732154264e-08,
+    "picks": {
+     "label": 24,
+     "da_gpsr": 24,
+     "gpsr_vote": 24,
+     "gpsr": 24,
+     "spbp_vote": 15,
+     "spbp": 1,
+     "dijkstra_vote": 24,
+     "behaviour": 24
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.645071028872792e-08,
+    "picks": {
+     "label": 24,
+     "da_gpsr": 24,
+     "gpsr_vote": 24,
+     "gpsr": 24,
+     "spbp_vote": 15,
+     "spbp": 15,
+     "dijkstra_vote": 24,
+     "behaviour": 24
+    },
+    "spbp_margin": 8.881784197001252e-16
+   }
+  },
+  {
+   "shard": "shards/medium_slow/medium_slow_r40_s116.npz",
+   "behaviour": "spbp",
+   "context": 11516,
+   "frame": 70,
+   "current": 7,
+   "dst": 5,
+   "k": 4,
+   "d_cd_m": 753.3707,
+   "float32": {
+    "fails": [
+     "D spbp",
+     "D behaviour"
+    ],
+    "score_diff": 5.305245065478914e-08,
+    "picks": {
+     "label": 0,
+     "da_gpsr": 0,
+     "gpsr_vote": 1,
+     "gpsr": 1,
+     "spbp_vote": 14,
+     "spbp": 0,
+     "dijkstra_vote": 1,
+     "behaviour": 14
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 1.1265204213906088e-08,
+    "picks": {
+     "label": 0,
+     "da_gpsr": 0,
+     "gpsr_vote": 1,
+     "gpsr": 1,
+     "spbp_vote": 14,
+     "spbp": 14,
+     "dijkstra_vote": 1,
+     "behaviour": 14
+    },
+    "spbp_margin": 8.881784197001252e-16
+   }
+  },
+  {
+   "shard": "shards/medium_slow/medium_slow_r40_s128.npz",
+   "behaviour": "dijkstra_nodrop",
+   "context": 26451,
+   "frame": 284,
+   "current": 12,
+   "dst": 27,
+   "k": 4,
+   "d_cd_m": 308.1579,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 1.2364970689016097e-07,
+    "picks": {
+     "label": 7,
+     "da_gpsr": 7,
+     "gpsr_vote": 7,
+     "gpsr": 7,
+     "spbp_vote": 0,
+     "spbp": 15,
+     "dijkstra_vote": null,
+     "behaviour": 7
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 1.6295885751915762e-09,
+    "picks": {
+     "label": 7,
+     "da_gpsr": 7,
+     "gpsr_vote": 7,
+     "gpsr": 7,
+     "spbp_vote": 0,
+     "spbp": 0,
+     "dijkstra_vote": null,
+     "behaviour": 7
+    },
+    "spbp_margin": 1.7763568394002505e-15
+   }
+  },
+  {
+   "shard": "shards/medium_slow/medium_slow_r60_s117.npz",
+   "behaviour": "spbp",
+   "context": 120313,
+   "frame": 926,
+   "current": 15,
+   "dst": 5,
+   "k": 12,
+   "d_cd_m": 282.0531,
+   "float32": {
+    "fails": [
+     "D spbp",
+     "D behaviour"
+    ],
+    "score_diff": 9.73662150904886e-08,
+    "picks": {
+     "label": 9,
+     "da_gpsr": 9,
+     "gpsr_vote": 9,
+     "gpsr": 9,
+     "spbp_vote": 16,
+     "spbp": 25,
+     "dijkstra_vote": 9,
+     "behaviour": 16
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 4.712621204383538e-08,
+    "picks": {
+     "label": 9,
+     "da_gpsr": 9,
+     "gpsr_vote": 9,
+     "gpsr": 9,
+     "spbp_vote": 16,
+     "spbp": 16,
+     "dijkstra_vote": 9,
+     "behaviour": 16
+    },
+    "spbp_margin": 1.7763568394002505e-15
+   }
+  },
+  {
+   "shard": "shards/sparse_fast/sparse_fast_r100_s147.npz",
+   "behaviour": "dijkstra_nodrop",
+   "context": 1205,
+   "frame": 32,
+   "current": 8,
+   "dst": 2,
+   "k": 5,
+   "d_cd_m": 419.1291,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 9.234113668155075e-08,
+    "picks": {
+     "label": 16,
+     "da_gpsr": 16,
+     "gpsr_vote": 16,
+     "gpsr": 16,
+     "spbp_vote": 4,
+     "spbp": 16,
+     "dijkstra_vote": null,
+     "behaviour": 16
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.1064365141043595e-08,
+    "picks": {
+     "label": 16,
+     "da_gpsr": 16,
+     "gpsr_vote": 16,
+     "gpsr": 16,
+     "spbp_vote": 4,
+     "spbp": 4,
+     "dijkstra_vote": null,
+     "behaviour": 16
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r40_s139.npz",
+   "behaviour": "da_gpsr",
+   "context": 26631,
+   "frame": 400,
+   "current": 35,
+   "dst": 43,
+   "k": 18,
+   "d_cd_m": 432.3068,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 5.72742586690822e-08,
+    "picks": {
+     "label": 41,
+     "da_gpsr": 41,
+     "gpsr_vote": 6,
+     "gpsr": 6,
+     "spbp_vote": 13,
+     "spbp": 15,
+     "dijkstra_vote": 2,
+     "behaviour": 41
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.7822003922928218e-08,
+    "picks": {
+     "label": 41,
+     "da_gpsr": 41,
+     "gpsr_vote": 6,
+     "gpsr": 6,
+     "spbp_vote": 13,
+     "spbp": 13,
+     "dijkstra_vote": 2,
+     "behaviour": 41
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r60_s120.npz",
+   "behaviour": "spbp",
+   "context": 131104,
+   "frame": 1580,
+   "current": 25,
+   "dst": 15,
+   "k": 14,
+   "d_cd_m": 413.9353,
+   "float32": {
+    "fails": [
+     "D spbp",
+     "D behaviour"
+    ],
+    "score_diff": 8.117728589329687e-08,
+    "picks": {
+     "label": 22,
+     "da_gpsr": 22,
+     "gpsr_vote": 22,
+     "gpsr": 22,
+     "spbp_vote": 11,
+     "spbp": 22,
+     "dijkstra_vote": 2,
+     "behaviour": 11
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.902706464080751e-08,
+    "picks": {
+     "label": 22,
+     "da_gpsr": 22,
+     "gpsr_vote": 22,
+     "gpsr": 22,
+     "spbp_vote": 11,
+     "spbp": 11,
+     "dijkstra_vote": 2,
+     "behaviour": 11
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r60_s144.npz",
+   "behaviour": "da_gpsr",
+   "context": 73392,
+   "frame": 1065,
+   "current": 5,
+   "dst": 18,
+   "k": 19,
+   "d_cd_m": 374.9564,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 1.3659275688304717e-07,
+    "picks": {
+     "label": 41,
+     "da_gpsr": 41,
+     "gpsr_vote": 41,
+     "gpsr": 41,
+     "spbp_vote": 13,
+     "spbp": 24,
+     "dijkstra_vote": 11,
+     "behaviour": 41
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.4380418128799874e-08,
+    "picks": {
+     "label": 41,
+     "da_gpsr": 41,
+     "gpsr_vote": 41,
+     "gpsr": 41,
+     "spbp_vote": 13,
+     "spbp": 13,
+     "dijkstra_vote": 11,
+     "behaviour": 41
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r80_s102.npz",
+   "behaviour": "da_gpsr",
+   "context": 21323,
+   "frame": 265,
+   "current": 23,
+   "dst": 40,
+   "k": 17,
+   "d_cd_m": 294.8022,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 5.911215172904605e-08,
+    "picks": {
+     "label": 14,
+     "da_gpsr": 14,
+     "gpsr_vote": 14,
+     "gpsr": 14,
+     "spbp_vote": 22,
+     "spbp": 43,
+     "dijkstra_vote": 10,
+     "behaviour": 14
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.708886015501122e-08,
+    "picks": {
+     "label": 14,
+     "da_gpsr": 14,
+     "gpsr_vote": 14,
+     "gpsr": 14,
+     "spbp_vote": 22,
+     "spbp": 22,
+     "dijkstra_vote": 10,
+     "behaviour": 14
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r80_s110.npz",
+   "behaviour": "da_gpsr",
+   "context": 129819,
+   "frame": 1801,
+   "current": 10,
+   "dst": 44,
+   "k": 23,
+   "d_cd_m": 250.3692,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 7.966997472852455e-08,
+    "picks": {
+     "label": 20,
+     "da_gpsr": 20,
+     "gpsr_vote": 20,
+     "gpsr": 20,
+     "spbp_vote": 0,
+     "spbp": 9,
+     "dijkstra_vote": 0,
+     "behaviour": 20
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.6544643594306194e-08,
+    "picks": {
+     "label": 20,
+     "da_gpsr": 20,
+     "gpsr_vote": 20,
+     "gpsr": 20,
+     "spbp_vote": 0,
+     "spbp": 0,
+     "dijkstra_vote": 0,
+     "behaviour": 20
+    },
+    "spbp_margin": 4.440892098500626e-16
+   }
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r80_s136.npz",
+   "behaviour": "da_gpsr",
+   "context": 92274,
+   "frame": 1138,
+   "current": 16,
+   "dst": 43,
+   "k": 19,
+   "d_cd_m": 260.8723,
+   "float32": {
+    "fails": [
+     "D spbp"
+    ],
+    "score_diff": 1.0481787676708265e-07,
+    "picks": {
+     "label": 34,
+     "da_gpsr": 34,
+     "gpsr_vote": 34,
+     "gpsr": 34,
+     "spbp_vote": 25,
+     "spbp": 40,
+     "dijkstra_vote": 0,
+     "behaviour": 34
+    },
+    "spbp_margin": 0.0
+   },
+   "exact": {
+    "fails": [],
+    "score_diff": 2.538708776533838e-08,
+    "picks": {
+     "label": 34,
+     "da_gpsr": 34,
+     "gpsr_vote": 34,
+     "gpsr": 34,
+     "spbp_vote": 25,
+     "spbp": 25,
+     "dijkstra_vote": 0,
+     "behaviour": 34
+    },
+    "spbp_margin": 1.1102230246251565e-16
+   }
+  }
+ ],
+ "replays": [
+  {
+   "shard": "shards/sparse_fast/sparse_fast_r100_s147.npz",
+   "key": "sparse_fast@100#147",
+   "exact": true,
+   "seconds": 217.1,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/medium_slow/medium_slow_r40_s128.npz",
+   "key": "medium_slow@40#128",
+   "exact": true,
+   "seconds": 358.8,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r60_s105.npz",
+   "key": "dense_slow@60#105",
+   "exact": true,
+   "seconds": 407.4,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/medium_slow/medium_slow_r40_s116.npz",
+   "key": "medium_slow@40#116",
+   "exact": true,
+   "seconds": 411.1,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r60_s139.npz",
+   "key": "dense_slow@60#139",
+   "exact": true,
+   "seconds": 459.3,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/medium_slow/medium_slow_r60_s117.npz",
+   "key": "medium_slow@60#117",
+   "exact": true,
+   "seconds": 605.6,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r80_s106.npz",
+   "key": "dense_slow@80#106",
+   "exact": true,
+   "seconds": 611.1,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 2
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r40_s139.npz",
+   "key": "very_dense@40#139",
+   "exact": true,
+   "seconds": 657.2,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r100_s122.npz",
+   "key": "dense_slow@100#122",
+   "exact": true,
+   "seconds": 700.3,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r100_s115.npz",
+   "key": "dense_slow@100#115",
+   "exact": true,
+   "seconds": 710.1,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/dense_slow/dense_slow_r100_s147.npz",
+   "key": "dense_slow@100#147",
+   "exact": true,
+   "seconds": 746.5,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r60_s120.npz",
+   "key": "very_dense@60#120",
+   "exact": true,
+   "seconds": 1097.8,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r60_s144.npz",
+   "key": "very_dense@60#144",
+   "exact": true,
+   "seconds": 1003.8,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r80_s110.npz",
+   "key": "very_dense@80#110",
+   "exact": true,
+   "seconds": 1079.5,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r80_s136.npz",
+   "key": "very_dense@80#136",
+   "exact": true,
+   "seconds": 1238.2,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  },
+  {
+   "shard": "shards/very_dense/very_dense_r80_s102.npz",
+   "key": "very_dense@80#102",
+   "exact": true,
+   "seconds": 1298.3,
+   "arrays_differing_from_stored": [],
+   "missing_frames": [],
+   "resolved": 1
+  }
+ ]
 }
