@@ -1,4 +1,45 @@
+"""apply_audit_exact_v30.py -- the Dataset V3 audit re-checks flagged contexts on the exact frame.
+
+    python apply_audit_exact_v30.py --root . --dry-run
+    python apply_audit_exact_v30.py --root .
+    python verify_audit_exact_v30.py --root .
+
+WHY. On data\v3m (2026-10-08) the v26 audit failed on float32 storage precision
+alone: B max |stored - re-derived score| 1.10e-3 against its 1e-3 tolerance, D 16
+SP-BP vote mismatches (allowed: 1%) and 3 behaviour-choice mismatches (allowed: 0)
+-- the same SP-BP picks counted again in SP-BP-driven episodes. Re-derived from the
+exact float64 frame (two v3m episodes replayed byte-identically in the sandbox,
+255,949 contexts) every stored score, label, vote and behaviour choice is
+reproduced. DATASET_V3_SPEC §0 #16.
+
+WHAT IT CHANGES
+  src/audit_dataset_v3.py  replaced as a whole (most functions change), guarded:
+                           written only if the current file is exactly the v26 one
+                           (sha256 of its newline-normalised text). Tolerances are
+                           unchanged; a context that fails a precision-sensitive check
+                           on the float32 frame is re-derived on its exact frame,
+                           recreated by replaying the episode (used only if the replay
+                           reproduces every stored frame array byte for byte). Both
+                           sets of counts are reported. Parallel shards
+                           (--max_workers), the v26 sample unchanged, every flagged
+                           context written to the report.
+  docs                     DATASET_V3_SPEC (status, §0 #16, §7, §10 step 5),
+                           docs/CLAUDE.md (status), results/README.md (v30 note,
+                           v3m reports).
+  The generator's code signature does not include the audit: data\v3m stays valid.
+
+Assertion-guarded per docs/CLAUDE.md: every anchor must match exactly once, all edits
+are staged in memory, nothing is written unless everything matches. Idempotent.
 """
+import argparse
+import hashlib
+import io
+import os
+import sys
+
+V26_AUDIT_SHA = 'cfc17c24a156769f'      # src/audit_dataset_v3.py, v26..v29 (newline-normalised)
+NEW_AUDIT_SHA = '6b8a6491da7828c5'
+NEW_AUDIT = r'''"""
 audit_dataset_v3.py  --  INDEPENDENT audit of Dataset V3 (docs/DATASET_V3_SPEC.md §7).
 
     python src\\audit_dataset_v3.py --data data\\v3m --max_workers 12
@@ -623,6 +664,174 @@ def main():
     with open(os.path.join(args.report_dir, f'{tag}_audit_v3.json'), 'w') as f:
         json.dump(report, f, indent=1)
     return 0 if ok else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+'''
+
+SPEC_STATUS_OLD = (
+    "teacher choice and Point-1 were re-run. **Regenerate before any use (§10).**\n")
+SPEC_STATUS_NEW = (
+    "teacher choice and Point-1 were re-run. Regenerated 2026-10-07/08 into `data\\v3m` (900 "
+    "episodes): G3.5 v3 PASS; the v26 audit failed on float32 storage precision alone (§0 #16), and "
+    "v30 re-checks such contexts on the exact frame. **Use `data\\v3m` once the v30 audit passes "
+    "(§10 step 5).**\n")
+
+SPEC_ROW16_ANCHOR = "Bands re-measured, dataset regenerated (§10) |\n\n---\n\n## 1. Decisions"
+SPEC_ROW16_NEW = (
+    "Bands re-measured, dataset regenerated (§10) |\n"
+    "| 16 | **The audit's float32 frames cannot reproduce every score or SP-BP pick** (found "
+    "2026-10-08 on `data\\v3m`) | the v26 audit FAILED on v3m: B max \\|stored − re-derived score\\| "
+    "1.10e-3 against its 1e-3 tolerance (label agreement 1.00000); D 16 SP-BP vote mismatches in "
+    "1.35 M contexts (allowed: 1%) and 3 behaviour-choice mismatches (allowed: 0). Sandbox, two v3m "
+    "episodes replayed byte-identically (sink_50@40#114, sparse_fast@100#116; 255,949 contexts, each "
+    "re-derived at both precisions): on the exact float64 frame every stored score matches to the "
+    "float32 rounding of the score itself, and every label, vote and behaviour choice matches; on the "
+    "stored float32 frame the score error stays inside its rigorous storage bound and grows like "
+    "d_nd / d_cd² near the destination (3e-6 at d_cd > 50 m, 3e-5 at 10–25 m; 1e-3 needs d_cd ≈ 3–4 m; "
+    "the pre-v28 full audit's maximum was 2.87e-4). SP-BP multiplies link quality by "
+    "an integer up to ~50 (queue + hop gradient), so candidates a few 1e-6 apart can swap (smallest "
+    "positive SP-BP margin seen: 2.5e-6). The 3 behaviour mismatches are SP-BP picks in SP-BP-driven "
+    "episodes, counted again at zero tolerance (deduced from the code: there the stored behaviour "
+    "choice and SP-BP vote come from the same picker call, and every other behaviour is checked "
+    "stored-against-stored or had 0 vote mismatches) | v30 (§7): tolerances unchanged; a context that "
+    "fails a precision-sensitive check on the float32 frame is re-derived on its exact frame, "
+    "recreated by replaying the episode; both sets of counts are reported. Re-run the audit before "
+    "the export (§10 step 5) |\n"
+    "\n---\n\n## 1. Decisions")
+
+SPEC_GATE_OLD = ("E splits · F hashing · G own-queue histograms recounted in plain Python |\n")
+SPEC_GATE_NEW = ("E splits · F hashing · G own-queue histograms recounted in plain Python · "
+                 "**v30:** a context that fails a precision-sensitive check on the float32 frame is "
+                 "re-checked on its exact frame (episode replay), tolerances unchanged |\n")
+
+SPEC_SMOKE_OLD = ("byte-identically; audit v3 PASS with 15 000 contexts re-derived, label agreement 1.00000,\n"
+                  "features 1.00000, 0 own-queue histogram mismatches.\n")
+SPEC_SMOKE_NEW = SPEC_SMOKE_OLD + (
+    "\n**v30 — exact re-check (§0 #16).** The audit re-derives from the stored float32 frame. Where "
+    "storage rounding alone can break a check — da_gpsr's unbounded progress term near the "
+    "destination, SP-BP's integer-weighted link quality — a flagged context (B score or label, D "
+    "gpsr / spbp vote, behaviour choice) is re-derived with the same code on the exact float64 frame, "
+    "recreated by replaying its episode (deterministic, check 7 of G3.5). A replay is used only if it "
+    "reproduces every stored frame array byte for byte; otherwise the context keeps its float32 "
+    "result. Tolerances are unchanged. The report keeps both `counts_float32` / `results_float32` "
+    "(= the v26 audit, same sample) and the re-checked `counts` / `results` (the verdict), plus every "
+    "flagged context with both derivations. `--exact_replay off` gives the v26 verdict. Shards are "
+    "audited in parallel (`--max_workers`); the sample does not depend on it. Each replay costs one "
+    "episode of generation time.\n")
+
+SPEC_RUN_OLD = ("5  python src\\preflight_dataset_v3_check.py --data data\\v3m ; "
+                "python src\\audit_dataset_v3.py --data data\\v3m\n")
+SPEC_RUN_NEW = ("5  python src\\preflight_dataset_v3_check.py --data data\\v3m ; "
+                "python src\\audit_dataset_v3.py --data data\\v3m --max_workers 12\n"
+                "     (2026-10-08: G3.5 v3 PASS; the v26 audit FAILED on float32 precision alone, §0 #16 ->\n"
+                "      v30 re-checks flagged contexts by replaying their episodes; re-run the audit)\n")
+
+CLAUDE_OLD = ("trigger). Next blocking pieces, in order: `verify_dataset_grid_v3.py` on the 18-cell grid,\n"
+              "smoke, regenerate into a new folder (data\\v3m), G3.5 v3 + audit v3, export, then the\n"
+              "retrain gate (held-out cells reported by default).")
+CLAUDE_NEW = ("trigger). v30 (2026-10-08): grid 18/18 PASS, data\\v3m regenerated (900 episodes), G3.5 v3\n"
+              "PASS; the v26 audit FAILED on float32 storage precision alone (DATASET_V3_SPEC §0 #16), so\n"
+              "the audit re-checks flagged contexts on the exact frame (episode replay; tolerances\n"
+              "unchanged). Next blocking pieces, in order: audit v3 (v30) on data\\v3m, export, then the\n"
+              "retrain gate (held-out cells reported by default).")
+
+README_NOTE_ANCHOR = ("The sparse_fast caveat was the bug: on the fixed simulator sparse_fast is "
+                      "congestion-limited like the others.\n\n")
+README_NOTE_NEW = README_NOTE_ANCHOR + (
+    "> **v30 (2026-10-08).** `data\\v3m` (900 episodes) passed G3.5 v3; the v26 audit failed on "
+    "float32 storage precision alone (DATASET_V3_SPEC §0 #16), and the audit now re-checks flagged "
+    "contexts on the exact frame. The first (v26) audit report was committed before the v30 re-run; "
+    "the v30 report keeps its float32 counts (`counts_float32`) beside the re-checked verdict.\n\n")
+
+README_ROWS_ANCHOR = "| `panel_cc_v2_corrected.json` | Convergecast oracle panel, after the v16 delta sign-flip fix. |"
+README_ROWS_NEW = (
+    "| `dataset_v3/v3m_manifest.json` | Manifest of `data\\v3m` (2026-10-08): 900 episodes, 18 cells × 50 "
+    "seeds, 127,041,906 contexts, 773,322,004 decisions, code signature `92e0c265044dd292` (v29 code, "
+    "v28 mobility). |\n"
+    "| `dataset_v3/v3m_preflight_v3.json` | G3.5 v3 on `data\\v3m`: PASS (12 checks, 10/10 corruptions "
+    "detected, sink_50@20#141 regenerated byte-identically). |\n"
+    "| `dataset_v3/v3m_audit_v3.json` | Independent audit of `data\\v3m` (v30: float32 counts and the "
+    "exact re-check of flagged contexts; the v26 FAIL is in the git history). |\n"
+    "| `panel_cc_v2_corrected.json` | Convergecast oracle panel, after the v16 delta sign-flip fix. |")
+
+
+def norm_sha(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]
+
+
+def read(path):
+    with io.open(path, 'r', encoding='utf-8', newline=None) as f:     # universal newlines
+        return f.read()
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--root', default='.')
+    ap.add_argument('--dry-run', action='store_true')
+    a = ap.parse_args()
+    root = os.path.abspath(a.root)
+    assert norm_sha(NEW_AUDIT) == NEW_AUDIT_SHA, 'this patch file is damaged (embedded audit hash)'
+    staged, done, errors = {}, [], []
+
+    # 1. the audit, replaced as a whole
+    p = os.path.join(root, 'src', 'audit_dataset_v3.py')
+    cur = read(p)
+    if norm_sha(cur) == NEW_AUDIT_SHA:
+        done.append('src/audit_dataset_v3.py')
+    elif norm_sha(cur) == V26_AUDIT_SHA:
+        staged[p] = NEW_AUDIT
+    else:
+        errors.append(f'src/audit_dataset_v3.py is neither the v26 file ({V26_AUDIT_SHA}) nor the v30 one '
+                      f'({NEW_AUDIT_SHA}): sha {norm_sha(cur)} -- local changes?')
+
+    # 2. docs: (file, guard proving it is applied, [(old, new)])
+    edits = [
+        (os.path.join('docs', 'DATASET_V3_SPEC.md'), 'v30 — exact re-check (§0 #16)',
+         [(SPEC_STATUS_OLD, SPEC_STATUS_NEW), (SPEC_ROW16_ANCHOR, SPEC_ROW16_NEW),
+          (SPEC_GATE_OLD, SPEC_GATE_NEW), (SPEC_SMOKE_OLD, SPEC_SMOKE_NEW), (SPEC_RUN_OLD, SPEC_RUN_NEW)]),
+        (os.path.join('docs', 'CLAUDE.md'), 'v30 (2026-10-08)', [(CLAUDE_OLD, CLAUDE_NEW)]),
+        (os.path.join('results', 'README.md'), '> **v30 (2026-10-08).**',
+         [(README_NOTE_ANCHOR, README_NOTE_NEW), (README_ROWS_ANCHOR, README_ROWS_NEW)]),
+    ]
+    for rel, guard, reps in edits:
+        path = os.path.join(root, rel)
+        text = read(path)
+        if guard in text:
+            done.append(rel)
+            continue
+        for old, new in reps:
+            n = text.count(old)
+            if n != 1:
+                errors.append(f'{rel}: anchor matched {n} times (need 1): {old[:70]!r}')
+                continue
+            text = text.replace(old, new)
+        staged[path] = text
+
+    print('=' * 78)
+    print('  v30 PATCH -- audit: exact re-check of flagged contexts')
+    print('=' * 78)
+    for d in done:
+        print(f'  already applied: {d}')
+    if errors:
+        print('\n  NOTHING WRITTEN:')
+        for e in errors:
+            print(f'    {e}')
+        return 1
+    for path in staged:
+        print(f'  {"would write" if a.dry_run else "writing"}: {os.path.relpath(path, root)}')
+    if not staged:
+        print('\n  ALREADY APPLIED. Nothing to do.')
+        return 0
+    if a.dry_run:
+        print(f'\n  DRY RUN OK -- {len(staged)} file(s) would be written.')
+        return 0
+    for path, text in staged.items():
+        with io.open(path, 'w', encoding='utf-8', newline='') as f:     # LF
+            f.write(text)
+    print(f'\n  APPLIED -- {len(staged)} file(s) written. Next: python verify_audit_exact_v30.py --root .')
+    return 0
 
 
 if __name__ == '__main__':

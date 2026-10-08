@@ -68,8 +68,10 @@ fixed in v28. Results from episodes longer than ~40 s produced before v28 ran on
 networks. v29 (2026-10-06): on the fixed simulator the five bands were re-measured
 (sparse_fast gained 60, sink_50 gained 40; DATASET_GRID follows -- 18 cells), the teacher
 choice re-confirmed (SINGLE da_gpsr) and Point-1 re-run (DATA-LIMITED on the same weak
-trigger). Next blocking pieces, in order: `verify_dataset_grid_v3.py` on the 18-cell grid,
-smoke, regenerate into a new folder (data\v3m), G3.5 v3 + audit v3, export, then the
+trigger). v30 (2026-10-08): grid 18/18 PASS, data\v3m regenerated (900 episodes), G3.5 v3
+PASS; the v26 audit FAILED on float32 storage precision alone (DATASET_V3_SPEC §0 #16), so
+the audit re-checks flagged contexts on the exact frame (episode replay; tolerances
+unchanged). Next blocking pieces, in order: audit v3 (v30) on data\v3m, export, then the
 retrain gate (held-out cells reported by default). Never resume or mix outputs across a `MOBILITY_VERSION` / code-signature
 change -- the scripts refuse it. Feature
 schema is v6 (live own queue). Labels come from da_gpsr through `teacher_pickers_v3` only — never add
