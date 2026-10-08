@@ -1,0 +1,24 @@
+{
+ "results": {
+  "A candidates": true,
+  "B label": false,
+  "C features": true,
+  "D votes": false,
+  "G own queue": true,
+  "E splits": true,
+  "F hashing": true
+ },
+ "counts": {
+  "n": 1350000,
+  "a_bad": 0,
+  "b_agree": 1350000,
+  "b_score_maxdiff": 0.001096879811228746,
+  "c_rows": 1350000,
+  "c_ok": 1350000,
+  "d_gpsr_bad": 0,
+  "d_dij_bad": 0,
+  "d_spbp_bad": 16,
+  "d_beh_bad": 3,
+  "g_bad": 0
+ }
+}
