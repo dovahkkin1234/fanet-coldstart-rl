@@ -21,10 +21,13 @@ teacher_pickers_v3 / features_v2 -- so a shared bug cannot pass both.
                   candidate, -1 exactly when no candidate reaches dst; spbp
                   re-derived from its formula; the behaviour choice of non-da_gpsr
                   episodes equals the corresponding teacher
-  E  splits       seeds partition into train/val/test, the generalisation
-                  scenario is held out by scenario, no shard shared
+  E  splits       seeds partition into train/val/test (disjoint, inside the
+                  split plan's ranges) and the manifest names the configured
+                  generalisation scenario (v31: the hold-out by scenario itself
+                  is applied downstream, by export_phaseb_v3 and PhaseB)
   F  hashing      behaviour table and packet sample recomputed with an
-                  independent splitmix64 implementation
+                  independent splitmix64 implementation (v31: the first shard's
+                  sampled packets must EQUAL the rule over every generated packet)
   G  own queue    (not re-derivable from frames: it is live) each sampled
                   context's own-queue histogram counts exactly its multiplicity
                   and contains its first-occurrence value; every step of a
@@ -36,8 +39,10 @@ float32, and two terms amplify its rounding far beyond 1e-7:
   * da_gpsr progress (d_cd - d_nd) / max(d_cd, 1) is unbounded; its error grows
     like d_nd / d_cd^2 when the deciding node is a few metres from the destination
     (measured: 3e-6 at d_cd > 50 m, 3e-5 at 10-25 m);
-  * SP-BP multiplies link quality by an integer up to ~50 (queue + hop gradient),
-    so two candidates a few 1e-6 apart can swap.
+  * SP-BP scores are link quality x an integer (queue + hop gradient), so float32
+    rounding can make two scores equal or unequal (on v3m: 15 of the 16 SP-BP flags
+    were float64 scores one rounding step apart that float32 made exactly equal, 1
+    was an exact float64 tie that float32 broke).
 On data\\v3m (2026-10-08) that alone failed the v26 audit: max score difference
 1.10e-3 against the 1e-3 tolerance, 16 SP-BP vote mismatches and, in the SP-BP
 behaviour episodes, 3 behaviour-choice mismatches (the same SP-BP picks, counted
@@ -53,6 +58,12 @@ counts are reported (counts_float32 = what v26 printed); the verdict uses the
 re-checked counts. --exact_replay off restores the v26 verdict.
 Also v30: shards are audited in parallel (--max_workers) with exactly the v26 sample
 (same generator, same order), and every flagged context is written to the report.
+
+v31 -- EVERY CHECK IS SHOWN TO FAIL. Corrupted copies now also exercise A (a candidate
+list out of canonical order), D (dijkstra votes changed; spbp votes changed in every
+sampled context, far above the 1% tolerance), E (a seed outside the split plan; a seed in
+two splits) and F (a behaviour-table entry changed; one sampled packet removed). No
+tolerance and no verdict on v3m changes.
 """
 
 import argparse
@@ -68,7 +79,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-AUDIT_VERSION = 'v30'
+AUDIT_VERSION = 'v31'
 TTL_REF = 20.0
 HOP_CAP = 10.0
 W_PROG, W_QUEUE, W_QUAL = 1.0, 1.0, 0.5       # da_gpsr weights (routing_teachers_v2)
@@ -449,6 +460,95 @@ def _negative_controls(d, meta, nc, names):
         # the clean copy may disagree only where the stored vote itself is re-derived differently
         if corrupt['d_beh_bad'] <= clean['d_beh_bad']:
             dead.append(f'D behaviour ({teacher})')
+    # v31: A -- candidate lists out of canonical order
+    x = dict(d, c_cands=d['c_cands'].copy())
+    off = np.concatenate([[0], np.cumsum(d['c_k'].astype(np.int64))])
+    for i in multi[:50]:
+        x['c_cands'][off[i]:off[i + 1]] = x['c_cands'][off[i]:off[i + 1]][::-1].copy()
+    ca, _ = audit_contexts(x, meta, nc, names, multi[:50])
+    if ca['a_bad'] == 0:
+        dead.append('A candidates')
+    # v31: D -- dijkstra votes changed (a vote set to -1, a -1 vote set to slot 0)
+    x = dict(d, c_votes=d['c_votes'].copy())
+    v0 = x['c_votes'][multi, 0]
+    x['c_votes'][multi, 0] = np.where(v0 >= 0, -1, 0).astype(x['c_votes'].dtype)
+    cd, _ = audit_contexts(x, meta, nc, names, multi)
+    if cd['d_dij_bad'] == 0:
+        dead.append('D dijkstra votes')
+    # v31: D -- spbp votes changed in every sampled context (far above the 1% tolerance)
+    x = dict(d, c_votes=d['c_votes'].copy())
+    x['c_votes'][multi, 2] = ((x['c_votes'][multi, 2] + 1) % x['c_k'][multi]).astype(x['c_votes'].dtype)
+    cs, _ = audit_contexts(x, meta, nc, names, multi)
+    if cs['d_spbp_bad'] == 0 or verdict(dict(cs, g_bad=0))['D votes']:
+        dead.append('D spbp votes')
+    return dead
+
+
+def check_splits(man):
+    """E: seeds partition into the splits (disjoint, inside the split plan's ranges) and the
+    manifest names the configured generalisation scenario. The hold-out by scenario itself
+    is applied downstream (export_phaseb_v3 gives that scenario its own split; PhaseB
+    asserts the partition)."""
+    import config_v2 as C
+    seeds = {}
+    for e in man['episodes']:
+        seeds.setdefault(e['split'], set()).add(e['seed'])
+    sp = list(seeds.values())
+    disjoint = all(not (a & b) for i, a in enumerate(sp) for b in sp[i + 1:])
+    plan = man['split_plan']
+    in_range = all(s in ('train', 'val', 'test') and plan[f'{s}_seeds'][0] <= sd <= plan[f'{s}_seeds'][1]
+                   for s, ss in seeds.items() for sd in ss)
+    gen_ok = plan.get('generalisation_scenario') == C.GENERALISATION_SCENARIO
+    return bool(disjoint and in_range and gen_ok)
+
+
+def check_hashing(man, e0, meta0, d0):
+    """F: the behaviour table and the first shard's packet sample, recomputed with the
+    independent splitmix64 above. v31: the sampled set must EQUAL the rule over every
+    generated packet (before, it only had to satisfy it)."""
+    plan = man['split_plan']
+    tab = man['behaviour']['table']
+    share, others = man['behaviour']['other_share'], man['behaviour']['other_teachers']
+    ok_tab = True
+    for k, (split, key) in enumerate((('train', 'train_seeds'), ('val', 'val_seeds'),
+                                      ('test', 'test_seeds'))):
+        lo, hi = plan[key]
+        ss = list(range(lo, hi + 1))
+        order = sorted(ss, key=lambda s: (_sm64(s, 0, man['hash']['salts']['behaviour']), s))
+        n_o = int(share * len(ss) + 0.5)
+        for i, s in enumerate(order):
+            want = others[(i + 2 * k) % len(others)] if i < n_o else 'da_gpsr'
+            ok_tab &= tab[str(s)] == want
+    frac = man['rl_packet_frac'][0]
+    salt = man['hash']['salts']['packet']
+    n_gen = int(meta0['metrics']['n_generated'])
+    want = {p for p in range(n_gen) if _sm64(e0['seed'], p, salt) < frac}
+    got = {int(p) for p in d0['p_pid']}
+    return bool(ok_tab and want == got)
+
+
+def _negative_controls_manifest(man, e0, meta0, d0):
+    """v31: E and F on corrupted copies. Returns the controls that did NOT fire."""
+    dead = []
+    bad = json.loads(json.dumps(man))
+    bad['episodes'][0]['seed'] = bad['split_plan']['train_seeds'][0] - 1    # outside every range
+    if check_splits(bad):
+        dead.append('E splits (seed outside the plan)')
+    bad = json.loads(json.dumps(man))
+    eps = bad['episodes']
+    a = next((e for e in eps if e['split'] == 'train'), None)
+    b = next((e for e in eps if e['split'] != 'train'), None)
+    if a is not None and b is not None:
+        b['seed'] = a['seed']                                               # a seed in two splits
+        if check_splits(bad):
+            dead.append('E splits (seed in two splits)')
+    bad = json.loads(json.dumps(man))
+    k0 = next(iter(bad['behaviour']['table']))
+    bad['behaviour']['table'][k0] = 'gpsr' if bad['behaviour']['table'][k0] != 'gpsr' else 'da_gpsr'
+    if check_hashing(bad, e0, meta0, d0):
+        dead.append('F hashing (behaviour table)')
+    if len(d0['p_pid']) and check_hashing(man, e0, meta0, dict(d0, p_pid=d0['p_pid'][1:])):
+        dead.append('F hashing (packet sample)')
     return dead
 
 
@@ -483,8 +583,10 @@ def main():
     meta0 = json.load(open(os.path.join(args.data, e0['shard'].replace('.npz', '.json'))))
     d0 = dict(np.load(os.path.join(args.data, e0['shard'])))
     dead = _negative_controls(d0, meta0, man['norm_constants_per_scenario'][meta0['scenario']], names)
-    print(f"  negative controls: corrupted labels / features / votes / own-queue histogram / "
-          f"behaviour choice (gpsr, spbp, dijkstra_nodrop episodes) "
+    dead += _negative_controls_manifest(man, e0, meta0, d0)
+    print(f"  negative controls: corrupted labels / features / votes (gpsr, dijkstra, spbp) / "
+          f"own-queue histogram / behaviour choice (gpsr, spbp, dijkstra_nodrop episodes) / "
+          f"candidate order / splits / hashing "
           f"{'ALL detected' if not dead else 'NOT detected: ' + str(dead)}")
     if dead:
         print('  ABORTED: an audit that cannot fail proves nothing.')
@@ -576,32 +678,8 @@ def main():
                                       {'fails': is_flagged(rx, SCORE_TOL), 'score_diff': rx['b_score_diff'],
                                        'picks': rx['picks'], 'spbp_margin': rx['spbp_margin']})})
     res = verdict(tot_x)
-    # E splits
-    seeds = {}
-    for e in man['episodes']:
-        seeds.setdefault(e['split'], set()).add(e['seed'])
-    sp = list(seeds.values())
-    disjoint = all(not (a & b) for i, a in enumerate(sp) for b in sp[i + 1:])
-    plan = man['split_plan']
-    in_range = all(plan[f'{s}_seeds'][0] <= sd <= plan[f'{s}_seeds'][1]
-                   for s, ss in seeds.items() for sd in ss)
-    res['E splits'] = res32['E splits'] = disjoint and in_range
-    # F hashing (independent splitmix64)
-    tab = man['behaviour']['table']
-    share, others = man['behaviour']['other_share'], man['behaviour']['other_teachers']
-    ok_tab = True
-    for k, (split, key) in enumerate((('train', 'train_seeds'), ('val', 'val_seeds'),
-                                      ('test', 'test_seeds'))):
-        lo, hi = plan[key]
-        ss = list(range(lo, hi + 1))
-        order = sorted(ss, key=lambda s: (_sm64(s, 0, man['hash']['salts']['behaviour']), s))
-        n_o = int(share * len(ss) + 0.5)
-        for i, s in enumerate(order):
-            want = others[(i + 2 * k) % len(others)] if i < n_o else 'da_gpsr'
-            ok_tab &= tab[str(s)] == want
-    frac = man['rl_packet_frac'][0]
-    ok_pk = all(_sm64(e0['seed'], int(p), man['hash']['salts']['packet']) < frac for p in d0['p_pid'])
-    res['F hashing'] = res32['F hashing'] = bool(ok_tab and ok_pk)
+    res['E splits'] = res32['E splits'] = check_splits(man)
+    res['F hashing'] = res32['F hashing'] = check_hashing(man, e0, meta0, d0)
     print('\n  VERDICT' + (' (float32 frames only)' if args.exact_replay == 'off' or not n_fl else
                          '   (v26 float32 verdict in brackets)'))
     for k, v in res.items():

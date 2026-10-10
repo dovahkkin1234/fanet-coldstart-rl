@@ -390,11 +390,24 @@ def negative_controls(d, meta, man):
     if len(x['s_action']):
         x['s_action'][0] = G.ACTION_DROP
         out['4 behaviour (drop)'] = bool(check_behaviour(x, meta, man))
-    # dedup: duplicate the first context's key
+    # dedup: a duplicated context key (v31: the v26 control bumped a multiplicity instead,
+    # so the key-uniqueness test itself was never shown to fail)
+    x = cp()
+    ks = x['c_k'].astype(np.int64)
+    pair = next(((int(w[0]), int(w[1])) for w in (np.where(ks == k)[0] for k in np.unique(ks))
+                 if len(w) >= 2), None)
+    if pair is not None:
+        i, j = pair
+        off = offsets(x['c_k'])
+        for col in ('c_frame', 'c_current', 'c_dst', 'c_hops'):
+            x[col][j] = x[col][i]
+        x['c_cands'][off[j]:off[j] + ks[j]] = x['c_cands'][off[i]:off[i] + ks[i]]
+        out['9 dedup (duplicate key)'] = any('duplicate context keys' in m for m in check_dedup(x, meta))
+    # dedup: multiplicities that no longer sum to the recorded decisions
     x = cp()
     if len(x['c_mult']) > 1:
         x['c_mult'][0] += 1
-        out['9 dedup'] = bool(check_dedup(x, meta))
+        out['9 dedup (multiplicity sum)'] = any('multiplicities sum' in m for m in check_dedup(x, meta))
     # dedup: own-queue histogram that no longer sums to the multiplicity
     x = cp()
     if len(x['o_count']):
@@ -498,12 +511,14 @@ def main():
     rng = np.random.default_rng(1)
     nc_ok = True
     shard_sigs = []
+    nc_record = {}
     t0 = time.time()
     for i, e in enumerate(eps):
         meta = json.load(open(os.path.join(args.data, e['shard'].replace('.npz', '.json'))))
         d = load_shard(args.data, e['shard'])
         if i == 0:
             nc = negative_controls(d, meta, man)
+            nc_record = dict(nc)
             dead = [k for k, v in nc.items() if not v]
             print(f"  negative controls: {len(nc) - len(dead)}/{len(nc)} corruptions detected"
                   + (f'   DEAD CHECKS: {dead}' if dead else ''))
@@ -619,9 +634,12 @@ def main():
 
     # ---- report
     print('\n  DIAGNOSTICS')
+    diag = {}
     for cell, (s0, w, hard) in sorted(trivial.items()):
         n_ep = sum(1 for e in man['episodes'] if f"{e['scenario']}@{e['rate']:g}" == cell)
         o = ownq_diag.get(cell, [1.0, 0.0, 0.0])
+        diag[cell] = {'slot0_share_of_decisions': s0 / max(w, 1),
+                      'hard_context_share': hard / max(n_ep, 1)}
         print(f'    {cell:<18} slot-0 (gpsr) share of decisions {s0 / max(w, 1):.3f}   '
               f'hard contexts {hard / max(n_ep, 1):.3f}   own queue != first occurrence in '
               f'{o[1] / max(o[0], 1):.3f} of decisions (first is {o[2] / max(o[0], 1):+.1f} pkts)')
@@ -647,7 +665,9 @@ def main():
     rep = {'results': results, 'details': details, 'mix': mix, 'pooled_epsilon': pooled,
            'own_queue': {c: {'share_differing_from_first': o[1] / max(o[0], 1),
                              'mean_first_minus_decision': o[2] / max(o[0], 1)}
-                         for c, o in sorted(ownq_diag.items())}}
+                         for c, o in sorted(ownq_diag.items())},
+           # v31: the evidence that was only printed before
+           'negative_controls': nc_record, 'diagnostics': diag, 'saturation': list(sat)}
     with open(os.path.join(args.data, 'preflight_v3.json'), 'w') as f:
         json.dump(rep, f, indent=1)
     # a tracked copy: data/ is git-ignored, the gate evidence should not be

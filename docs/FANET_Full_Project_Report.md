@@ -7,6 +7,8 @@
 **Repository:** `github.com/dovahkkin1234/fanet-coldstart-rl` · **HEAD at time of writing:** `376d209` (2026-09-22) · 56 commits, 2026-07-05 → 2026-09-22
 **Report date:** 2026-09-30
 
+> **Dated record (2026-09-30), not the current status — read `docs/DATASET_V3_SPEC.md` (status line, §0, §10, §12) and `docs/CLAUDE.md`.** Since this report: the label teacher was decided (a single global da_gpsr, 2026-10-01, re-confirmed on the fixed simulator); the waypoint-trapping bug was found and fixed (v28, ledger #49) — every 1000 s result in this report predates it; Dataset V3 was generated, regenerated on the fixed simulator (`data\v3m`), gated, exported and passed the restated G4 (2026-10-10). §18.1's order was changed by DATASET_V3_SPEC §10 (the dataset before the parity gate, risk accepted). §17.4 #1 / D-20 (D5 as partition-robustness) rested on sparse_fast measured with the trapping bug; on the fixed simulator sparse_fast is congestion-limited, so D5 must be restated again.
+
 ---
 
 ## 0. How to read this report
@@ -1152,7 +1154,7 @@ Honest reading [ASSESSMENT]: two weeks covers Phase 0–1 comfortably and Phase 
 
 ## 21. The complete defect ledger
 
-**48 ledger entries (several of which group more than one defect — roughly 55 in all)** have been found across the project, almost all by a gate, an audit, an assertion or a negative control rather than by inspection. At least six were in code written to check other code.
+**54 ledger entries (several of which group more than one defect — roughly 62 in all)** have been found across the project, almost all by a gate, an audit, an assertion or a negative control rather than by inspection. At least nine were in code written to check other code. Entries 49–54 were added on 2026-10-10 (v31).
 
 | # | Defect | Found by | Consequence if missed |
 |---|---|---|---|
@@ -1201,6 +1203,12 @@ Honest reading [ASSESSMENT]: two weeks covers Phase 0–1 comfortably and Phase 
 | 46 | Leading-group rule promoted underpowered losers (4/9 cells) | per-seed recompute | wrong oracle in 4 cells |
 | 47 | Agreement probe read `n_loop_override` (real: `n_overrides`) | output inspection | null override field (agreement unaffected) |
 | 48 | Convergecast script "stuck": silent max-rate self-tests + 16 Windows spawn workers | observation | lost hours |
+| 49 | Drones trapped at their waypoints: a 2.5–25 m step against a 1 m arrival radius started an endless overshoot (in `mobility.py` since the first commit) | analysis of the v26 run (sparse_fast seeds near 0% PDR) | every result from episodes longer than ~40 s ran on freezing networks; bands, teacher choice, Point-1 and the dataset were re-run (v28/v29) |
+| 50 | The audit applied its score tolerance and zero-tolerance behaviour check to float32 re-derivations of ill-conditioned quantities | the audit failing a correct dataset (v3m) | a correct dataset failed its audit; v30 re-checks flagged contexts on exact replays |
+| 51 | The SP-BP restricted picker breaks exact ties in candidate order, not node-id order as documented; its pins and the audit shared the assumption | independent review (2026-10-09) | stored SP-BP votes and SP-BP-driven episodes differ from the panels' SP-BP on 4.5–12% of decisions (labels unaffected); fix at the next regeneration |
+| 52 | The G4 gate resumed `gate.json` and checkpoints by key, without provenance; its default `--out` held the pre-v28 results | independent review (2026-10-09) | a run on the default folder would have mixed the pre-v28 rollouts (and any students still there) into the new verdict; v31 records and checks provenance |
+| 53 | The export-size rule assumed the frames scale with `--ctx_frac` | the exporter's size guard | the suggested fraction (0.54) would have been refused again; the rule is 0.6 × (21.5 − frames GB) / decisions GB |
+| 54 | Checks claiming more than they test: G3.5 check 9's duplicate-key control bumped a multiplicity; audit E claimed a scenario hold-out check; audit A, D (dijkstra, spbp), E and F had no corruption test | independent review (2026-10-09) | key uniqueness and four audit checks were never shown to fail; v31 adds the controls |
 
 **Lessons that generalise** (all already in CLAUDE.md): verify by execution; equivalence controls must be shown to *fail* on a broken variant; grep for the defect *class*, not the instance; pin behaviour, not version numbers; never exempt a check on a prediction; never extrapolate cost; commit at verified checkpoints; a plausible number on a dead mechanism is the default failure mode.
 

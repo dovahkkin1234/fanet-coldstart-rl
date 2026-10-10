@@ -129,7 +129,7 @@ def main():
     def c1():
         assert 'audit_dataset_v3' not in G.SIGNATURE_MODULES
         assert G.CODE_SIGNATURE == V29_SIGNATURE, (G.CODE_SIGNATURE, V29_SIGNATURE)
-        assert A.AUDIT_VERSION == 'v30' and A.SCORE_TOL == 1e-3 and A.LABEL_MIN_AGREE == 0.99 \
+        assert A.AUDIT_VERSION in ('v30', 'v31') and A.SCORE_TOL == 1e-3 and A.LABEL_MIN_AGREE == 0.99 \
             and A.FEAT_TOL == 1e-4 and A.FEAT_MIN_OK == 0.999, 'a tolerance changed'
         return f'code signature still {V29_SIGNATURE}; tolerances as in v26 (score 1e-3, label 0.99, spbp 1%)'
     c1()

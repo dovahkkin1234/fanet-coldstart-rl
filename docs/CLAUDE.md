@@ -59,8 +59,8 @@ cd C:\Users\PREETH\FANET_sim
 
 ## Where things stand (update this section, not the rest, as milestones close)
 
-`HEAD` should always be current in FILE1/FILE2's headers — if it isn't, that's a sign
-work was committed without updating them.
+Keep this section and DATASET_V3_SPEC's status line current. FILE1/FILE2 are history;
+their headers are not updated.
 
 As of v28 (2026-10-04): the v26 dataset was generated and passed every gate, then the
 mobility bug was found (drones trapped at their waypoints; DATASET_V3_SPEC §0 #15) and
@@ -68,11 +68,17 @@ fixed in v28. Results from episodes longer than ~40 s produced before v28 ran on
 networks. v29 (2026-10-06): on the fixed simulator the five bands were re-measured
 (sparse_fast gained 60, sink_50 gained 40; DATASET_GRID follows -- 18 cells), the teacher
 choice re-confirmed (SINGLE da_gpsr) and Point-1 re-run (DATA-LIMITED on the same weak
-trigger). v30 (2026-10-08): grid 18/18 PASS, data\v3m regenerated (900 episodes), G3.5 v3
-PASS; the v26 audit FAILED on float32 storage precision alone (DATASET_V3_SPEC §0 #16), so
-the audit re-checks flagged contexts on the exact frame (episode replay; tolerances
-unchanged). Next blocking pieces, in order: audit v3 (v30) on data\v3m, export, then the
-retrain gate (held-out cells reported by default). Never resume or mix outputs across a `MOBILITY_VERSION` / code-signature
+trigger). Grid 18/18 PASS (2026-10-07); data\v3m regenerated (900 episodes): G3.5 v3 PASS,
+audit v3 PASS after the exact re-check added in v30 (2026-10-08) -- the v26 audit failed on
+float32 storage precision alone (DATASET_V3_SPEC §0 #16); export at --ctx_frac 0.52 (37.46 M
+rows); restated G4 PASS on 2026-10-10 (14/14, held-out 4/4 inside the margin). The dataset
+milestone is closed. Warmstart candidates: results\g4_v3m\student_2000.pt and
+student_2001.pt (not in git). Open before M5 (DATASET_V3_SPEC §12): the Suite C weight, the
+early-stopping metric, D5's restatement, re-measuring D2's reference. Next blocking pieces:
+Phase 0 (environment contract, D1-D5 frozen), the run_iter() refactor, FANETEnvV2 and its
+parity gate. Never edit a module in generate_dataset_v3.SIGNATURE_MODULES without
+regenerating: even a comment changes the code signature, and the export and the gate then
+refuse data\v3m. Never resume or mix outputs across a `MOBILITY_VERSION` / code-signature
 change -- the scripts refuse it. Feature
 schema is v6 (live own queue). Labels come from da_gpsr through `teacher_pickers_v3` only — never add
 another label path. Training rows take `own_queue_live` from each context's own-queue

@@ -25,9 +25,18 @@ NON-INFERIORITY test against the policy the student imitates:
   300 s, so 5 seeds at 1000 s should give half-widths well under 1 pp.
 
 Pre-registered here, before any v3 result exists. Stages are resumable.
+
+v31 (2026-10-10): results are resumed only from the same export and settings. gate.json
+records its provenance (the export manifest's hash and code signature, the tuned config,
+the mask, the early-stopping metric, smoke); a resume with anything else is refused. A
+gate.json written before v31 (no provenance) is analysed as it is, and resumed only with
+--adopt_legacy_results (recorded). --out is required: the old default, results/g4_v3,
+holds pre-v28 results. A cell missing any seed is INCOMPLETE. --es_metric chooses the
+early-stopping metric (default: the unweighted contested accuracy that G4 v3m used).
 """
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -43,6 +52,36 @@ import config_v2 as C                                            # noqa: E402
 
 MARGIN_PP = 1.0
 TUNED = dict(lr=1e-3, attn_dropout=0.1, max_epochs=100)          # M4 decision D-10
+GATE_VERSION = 'v31'
+PROVENANCE_KEYS = ('tuned', 'mask', 'es_metric', 'smoke')
+
+
+def export_identity(data):
+    """What a gate result depends on: the export itself (its manifest's bytes) and the
+    code that wrote the dataset behind it. None when there is no export."""
+    p = os.path.join(data, 'manifest.json')
+    if not os.path.isfile(p):
+        return None
+    with open(p, 'rb') as f:
+        raw = f.read()
+    m = json.loads(raw.decode('utf-8'))
+    return {'path': os.path.abspath(data), 'manifest_sha256_16': hashlib.sha256(raw).hexdigest()[:16],
+            'code_signature': m.get('code_signature'), 'n_rows': m.get('n_rows'),
+            'ctx_frac': m.get('ctx_frac'), 'weighting': m.get('weighting'), 'ownq': m.get('ownq')}
+
+
+def provenance_mismatch(old, new):
+    """What makes stored results unusable for this run. The export may move (its path is
+    recorded, not compared); its manifest may not change."""
+    out = []
+    oe, ne = old.get('export') or {}, new.get('export') or {}
+    for k in ('manifest_sha256_16', 'code_signature'):
+        if oe.get(k) != ne.get(k):
+            out.append(f'export {k} {oe.get(k)} -> {ne.get(k)}')
+    for k in PROVENANCE_KEYS:
+        if old.get(k) != new.get(k):
+            out.append(f'{k} {old.get(k)} -> {new.get(k)}')
+    return out
 
 
 def reference_episode(scenario, rate, seed, duration=None):
@@ -115,7 +154,9 @@ def paired(a, b):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--data', default=os.path.join('data', 'phaseB_v3'))
-    ap.add_argument('--out', default=os.path.join('results', 'g4_v3'))
+    ap.add_argument('--out', required=True,
+                    help='a NEW folder per export: results are resumed only from the same export '
+                         'and settings (v31)')
     ap.add_argument('--model_seeds', type=int, default=2)
     ap.add_argument('--eval_seeds', type=int, nargs='+', default=[1, 2, 3, 4, 5])
     ap.add_argument('--cells', nargs='+', default=None, help="'scenario@rate' (default: all training cells)")
@@ -130,16 +171,27 @@ def main():
     ap.add_argument('--stage', choices=('all', 'train', 'rollout', 'analyze'), default='all')
     ap.add_argument('--allow_stale_code', action='store_true',
                     help='gate an export whose dataset was written by other code')
+    ap.add_argument('--es_metric', choices=('accuracy_contested', 'accuracy_contested_w'),
+                    default='accuracy_contested',
+                    help="early stopping: 'accuracy_contested' (default; unweighted over the "
+                         "export's rows, as G4 v3m) or 'accuracy_contested_w' (weighted by "
+                         "multiplicity = the raw decision stream)")
+    ap.add_argument('--adopt_legacy_results', action='store_true',
+                    help='resume a gate.json written before v31 (it records no provenance); '
+                         'only if you know it comes from this export -- recorded in gate.json')
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     bad = [s for s in args.eval_seeds if 101 <= s <= 150]
     if bad:
         raise SystemExit(f'eval seeds {bad} are dataset seeds -- that would measure memorisation')
+    ident = export_identity(args.data)
     if args.stage in ('all', 'train', 'rollout'):
+        if ident is None:
+            raise SystemExit(f'  no export at {args.data} (manifest.json missing) -- run '
+                             f'export_phaseb_v3.py first')
         # v28: the reference runs in THIS simulator; the student must have learned from it
         import generate_dataset_v3 as G
-        pman = os.path.join(args.data, 'manifest.json')
-        sig = json.load(open(pman)).get('code_signature') if os.path.isfile(pman) else None
+        sig = ident['code_signature']
         if sig != G.CODE_SIGNATURE and not args.allow_stale_code:
             raise SystemExit(f'  export {args.data} comes from other code (signature {sig or "none, pre-v28"} '
                              f'!= current {G.CODE_SIGNATURE}) -- re-export a regenerated dataset, '
@@ -159,6 +211,27 @@ def main():
         held = []
     res_path = os.path.join(args.out, 'gate.json')
     res = json.load(open(res_path)) if os.path.isfile(res_path) else {'train': {}, 'pdr': {}}
+    # v31: resume only what came from this export and these settings
+    prov = {'gate_version': GATE_VERSION, 'export': ident, 'tuned': TUNED, 'mask': 'hop',
+            'es_metric': args.es_metric, 'smoke': bool(args.smoke)}
+    old = res.get('provenance')
+    has_results = bool(res.get('train') or res.get('pdr'))
+    if args.stage in ('all', 'train', 'rollout'):
+        if has_results and old is None:
+            if not args.adopt_legacy_results:
+                raise SystemExit(f'  {res_path} was written before v31 and records no provenance, '
+                                 f'so its results cannot be matched to this export: use a new --out, '
+                                 f'or --adopt_legacy_results if they come from this export (recorded)')
+            prov['adopted_legacy_results'] = True
+        elif has_results:
+            mm = provenance_mismatch(old, prov)
+            if mm:
+                raise SystemExit(f'  {res_path} holds results from another export or setting '
+                                 f'({"; ".join(mm)}) -- use a new --out')
+            prov = old
+        res['provenance'] = prov
+    elif has_results and old is None:
+        print(f'  note: {res_path} predates v31 (no provenance recorded) -- analysed as it is')
 
     # ---- train
     if args.stage in ('all', 'train'):
@@ -177,16 +250,20 @@ def main():
             if str(seed) in res['train'] and os.path.isfile(ck):
                 continue
             t0 = time.time()
-            model, val, epochs = train_one(ds, 'attention', seed, dev, hp=hp)
+            model, val, epochs = train_one(ds, 'attention', seed, dev, hp=hp, es_metric=args.es_metric)
             torch.save({'state_dict': model.state_dict(), 'mixer': 'attention', 'hp': hp,
                         'mask': MASK_PRESETS['hop'], 'schema': ds.schema_version,
                         'seed': seed, 'data': os.path.abspath(args.data),
-                        'weighting': dman.get('weighting'), 'val_contested': val}, ck)
-            res['train'][str(seed)] = {'val_contested': val, 'epochs': epochs,
+                        'weighting': dman.get('weighting'), 'val_contested': val,
+                        'es_metric': args.es_metric,
+                        'export_manifest_sha256_16': ident['manifest_sha256_16']}, ck)
+            res['train'][str(seed)] = {'val_contested': val, 'es_metric': args.es_metric,
+                                       'epochs': epochs,
                                        'n_train': int(len(ds.idx['train'])),
                                        'seconds': time.time() - t0, 'schema': ds.schema_version}
             json.dump(res, open(res_path, 'w'), indent=1)
-            print(f'  [student {seed}] val contested {val:.4f}  epochs {epochs}  '
+            label = 'contested' if args.es_metric == 'accuracy_contested' else 'contested (weighted)'
+            print(f'  [student {seed}] val {label} {val:.4f}  epochs {epochs}  '
                   f"n_train {len(ds.idx['train']):,}  ({time.time() - t0:.0f}s)")
         del ds                        # a full export can be ~20 GB: free it before the
         import gc                     # rollout workers start
@@ -222,9 +299,9 @@ def main():
     rows, incon, failed, incomplete = [], [], [], []
     for s, r in cells + held:
         cell = f'{s}@{r:g}'
-        seeds = [sd for sd in args.eval_seeds if f'reference|{cell}|{sd}' in res['pdr']]
+        seeds = list(args.eval_seeds)        # v31: every seed, or the cell is incomplete
         studs = [f'student_{2000 + i}' for i in range(args.model_seeds)]
-        if not seeds or not all(f'{a}|{cell}|{sd}' in res['pdr'] for a in studs for sd in seeds):
+        if not all(f'{a}|{cell}|{sd}' in res['pdr'] for a in ['reference'] + studs for sd in seeds):
             print(f'    {cell:<18} incomplete')
             if (s, r) in cells:
                 incomplete.append(cell)

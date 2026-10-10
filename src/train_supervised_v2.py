@@ -380,7 +380,7 @@ def run_batch(model, bt):
 # evaluation
 # ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
-def evaluate(model, ds, split, device, frames_per_batch):
+def evaluate(model, ds, split, device, frames_per_batch, breakdown=False):
     model.eval()
     fs = ds.by_frame[split]
     correct, ids_all = [], []
@@ -404,18 +404,45 @@ def evaluate(model, ds, split, device, frames_per_batch):
     out['n'] = int(len(correct))
     # v26: frequency-weighted accuracy when the rows are de-duplicated contexts
     # carrying their multiplicity (Dataset V3) -- comparable to per-decision
-    # accuracy on a raw dataset. Reported only; early stopping is unchanged.
+    # accuracy on a raw dataset. Reported only; early stopping is unchanged
+    # (v31: unless train_one(es_metric='accuracy_contested_w') asks for it).
     if 'weight' in ds.dec:
         w = ds.dec['weight'][ids].astype(np.float64)
         out['accuracy_raw_w'] = float((correct * w).sum() / max(w.sum(), 1e-12))
         out['accuracy_contested_w'] = (float((correct[con] * w[con]).sum()
                                              / max(w[con].sum(), 1e-12))
                                        if con.any() else float('nan'))
+    # v31, on request (eval_students_v3.py; not per epoch -- it copies the split's string
+    # columns): contested accuracy per behaviour policy (DATASET_V3_SPEC §6) and per
+    # scenario, unweighted and weighted, when the export carries those columns
+    if breakdown:
+        w_all = ds.dec['weight'][ids].astype(np.float64) if 'weight' in ds.dec else None
+        for col, tag in (('behaviour', 'beh'), ('scenario', 'sc')):
+            if col not in ds.dec:
+                continue
+            uniq, inv = np.unique(ds.dec[col][ids], return_inverse=True)
+            for j, b in enumerate(uniq):
+                m = (inv == j) & con
+                out[f'n_contested_{tag}_{b}'] = int(m.sum())
+                out[f'accuracy_contested_{tag}_{b}'] = (float(correct[m].mean()) if m.any()
+                                                        else float('nan'))
+                if w_all is not None:
+                    out[f'accuracy_contested_w_{tag}_{b}'] = (
+                        float((correct[m] * w_all[m]).sum() / max(w_all[m].sum(), 1e-12))
+                        if m.any() else float('nan'))
     return out
 
 
 def train_one(ds, mixer, seed, device, dst_encoding='encoded', hp=None,
-              verbose=False):
+              verbose=False, es_metric='accuracy_contested'):
+    """Train one model; early stopping on the validation `es_metric` (v31):
+    'accuracy_contested' (the default, unchanged: unweighted over the rows -- on a Dataset V3
+    export, over distinct contexts) or 'accuracy_contested_w' (weighted by the rows'
+    multiplicity, i.e. the raw decision stream; needs a weight column)."""
+    if es_metric not in ('accuracy_contested', 'accuracy_contested_w'):
+        raise ValueError(f'es_metric {es_metric!r} is not accuracy_contested / accuracy_contested_w')
+    if es_metric == 'accuracy_contested_w' and 'weight' not in ds.dec:
+        raise ValueError('es_metric accuracy_contested_w needs a weight column (a Dataset V3 export)')
     hp = dict(SEARCH_SPACE if hp is None else hp)
     set_determinism()          # G4 check 6: see model_gnn_attn.set_determinism
     torch.manual_seed(seed)
@@ -448,7 +475,7 @@ def train_one(ds, mixer, seed, device, dst_encoding='encoded', hp=None,
             nn.utils.clip_grad_norm_(model.parameters(), hp['grad_clip'])
             opt.step()
         va = evaluate(model, ds, 'val', device, hp['frames_per_batch'])
-        score = va['accuracy_contested']
+        score = va[es_metric]
         if verbose:
             print(f"      epoch {epoch:02d}  val_contested={score:.4f}")
         if score > best + 1e-5:
