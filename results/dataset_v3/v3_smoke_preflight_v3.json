@@ -26,7 +26,7 @@
   "6 features": [],
   "8 redundancy": [],
   "7 reproducible": [
-   "sink_50@30#101: all 47 arrays identical (29s)"
+   "sink_50@40#101: all 47 arrays identical (41s)"
   ]
  },
  "mix": {
@@ -37,7 +37,7 @@
    "da_gpsr": 5
   }
  },
- "pooled_epsilon": 0.10125530656273923,
+ "pooled_epsilon": 0.10117887580873706,
  "own_queue": {
   "dense_slow@100": {
    "share_differing_from_first": 0.6622368700829258,
@@ -47,17 +47,17 @@
    "share_differing_from_first": 0.5726896499354545,
    "mean_first_minus_decision": 6.1917191890044805
   },
-  "sink_50@30": {
-   "share_differing_from_first": 0.6889884388614357,
-   "mean_first_minus_decision": 3.991825613079019
+  "sink_50@40": {
+   "share_differing_from_first": 0.7103699635528483,
+   "mean_first_minus_decision": 6.3327674871436415
   },
   "sparse_fast@100": {
-   "share_differing_from_first": 0.6521454307238782,
-   "mean_first_minus_decision": 8.135722240419259
+   "share_differing_from_first": 0.6977614652227633,
+   "mean_first_minus_decision": 9.306429730842842
   },
   "very_dense@80": {
-   "share_differing_from_first": 0.7435019141648197,
-   "mean_first_minus_decision": 12.04777856135402
+   "share_differing_from_first": 0.743298329195464,
+   "mean_first_minus_decision": 12.029960410655573
   }
  }
 }
