@@ -1,8 +1,9 @@
 # CLAUDE.md — behavioral contract for this repo
 
 FANET lifelong-RL routing research, IIITDM Kancheepuram. For project state, read
-`docs/FANET_Full_Project_Report.md` (the current record and plan) and, for the dataset,
-`docs/DATASET_V3_SPEC.md`. `docs/FILE1_APPROACH2_RECORD.md` / `FILE2_PRE_M5_EXECUTION_PLAN.md`
+the "Where things stand" section below and `docs/DATASET_V3_SPEC.md` (status line, §12);
+`docs/FANET_Full_Project_Report.md` is the dated record of 2026-09-30 (its §17-§18 hold the
+Phase 0 agenda). `docs/FILE1_APPROACH2_RECORD.md` / `FILE2_PRE_M5_EXECUTION_PLAN.md`
 are history: their banners say what in them is superseded (FILE2's stride-10 patch,
 rate grids and SP-BP oracle must NOT be implemented). Do not restate their content
 here; this file is rules, not knowledge.
@@ -54,8 +55,9 @@ cd C:\Users\PREETH\FANET_sim
   `PRE_M5_POSITIONING_PLAN.md`, which has Gate G-A's detailed acceptance criteria).
 - `results/` — run outputs. **`results/checkpoints/*.pt` is Approach-1-shaped and
   quarantined — do not load as a warmstart source.** See FILE1 §1 for why.
-- `results/m5_masked/` — the real M4 warmstart checkpoints, but **no `.pt` files exist
-  there yet** (FILE2 §10.5) — a save step is still needed before Phase 4 can load one.
+- `results/m5_masked/` — M4-era masked-GNN results (40 s, feature schema v5); no `.pt`
+  files were saved there (FILE2 §10.5). Not the warmstart source: the M5 warmstart is
+  `results/g4_v3m/student_2001.pt` (not in git), pinned by `results/g4_v3m/warmstart.json`.
 
 ## Where things stand (update this section, not the rest, as milestones close)
 
@@ -77,7 +79,11 @@ student_2001.pt (not in git); decided 2026-10-10 (v32): the warmstart is student
 delivery, trained with the natural sink_50 share and unweighted early stopping. Load it only
 through record_warmstart_v3.selected_checkpoint(), which checks the sha256 recorded in
 results\g4_v3m\warmstart.json. Open before M5 (DATASET_V3_SPEC §12): D5's restatement,
-re-measuring D2's reference. Next blocking pieces:
+re-measuring D2's reference. No regeneration is planned (v33, 2026-10-11): the defaults
+stand without ablations, and §0 #17-#19 are accepted for v3m with usage rules. M5 inherits
+DATASET_V3_SPEC §12 item 16: a fresh-seed baseline for the warmstart, one M5 seed from
+student_2000, exploration designed in, no deduplication of RL transitions, SP-BP baselines
+with node-id tie order, generalisation on evaluation seeds only. Next blocking pieces:
 Phase 0 (environment contract, D1-D5 frozen), the run_iter() refactor, FANETEnvV2 and its
 parity gate. Never edit a module in generate_dataset_v3.SIGNATURE_MODULES without
 regenerating: even a comment changes the code signature, and the export and the gate then
