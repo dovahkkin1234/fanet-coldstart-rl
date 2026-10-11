@@ -73,8 +73,11 @@ audit v3 PASS after the exact re-check added in v30 (2026-10-08) -- the v26 audi
 float32 storage precision alone (DATASET_V3_SPEC §0 #16); export at --ctx_frac 0.52 (37.46 M
 rows); restated G4 PASS on 2026-10-10 (14/14, held-out 4/4 inside the margin). The dataset
 milestone is closed. Warmstart candidates: results\g4_v3m\student_2000.pt and
-student_2001.pt (not in git). Open before M5 (DATASET_V3_SPEC §12): the Suite C weight, the
-early-stopping metric, D5's restatement, re-measuring D2's reference. Next blocking pieces:
+student_2001.pt (not in git); decided 2026-10-10 (v32): the warmstart is student_2001.pt, by G4
+delivery, trained with the natural sink_50 share and unweighted early stopping. Load it only
+through record_warmstart_v3.selected_checkpoint(), which checks the sha256 recorded in
+results\g4_v3m\warmstart.json. Open before M5 (DATASET_V3_SPEC §12): D5's restatement,
+re-measuring D2's reference. Next blocking pieces:
 Phase 0 (environment contract, D1-D5 frozen), the run_iter() refactor, FANETEnvV2 and its
 parity gate. Never edit a module in generate_dataset_v3.SIGNATURE_MODULES without
 regenerating: even a comment changes the code signature, and the export and the gate then
